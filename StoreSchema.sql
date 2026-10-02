@@ -179,6 +179,24 @@ CREATE TABLE Sales_Transaction_Item (
 );
 GO
 
+CREATE TABLE Product_Return(
+    return_id INT PRIMARY KEY,
+    transaction_id INT NOT NULL,
+    product_id INT NOT NULL,
+    employee_id INT NOT NULL,
+    return_date DATETIME NOT NULL,
+    quantity INT NOT NULL,
+    refund_amount DECIMAL(10, 2) NULL,
+    reason NVARCHAR(1000) NULL,
+
+    CONSTRAINT FK_Product_Return_Transaction FOREIGN KEY (transaction_id) REFERENCES Sales_Transaction(transaction_id),
+    CONSTRAINT FK_Product_Return_Product FOREIGN KEY (product_id) REFERENCES Product(product_id),
+    CONSTRAINT FK_Product_Return_Employee FOREIGN KEY (employee_id) REFERENCES Employee(employee_id),
+    CONSTRAINT CK_Product_Return_Quantity CHECK (quantity > 0),
+    CONSTRAINT CK_Product_Return_Refund CHECK (refund_amount >= 0)
+);
+GO
+
 CREATE TABLE Review (
     review_id INT PRIMARY KEY,
     product_id INT NOT NULL,
