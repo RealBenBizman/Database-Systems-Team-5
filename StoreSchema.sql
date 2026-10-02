@@ -93,11 +93,12 @@ CREATE TABLE Discount (
     discount_type VARCHAR(50) NOT NULL,
     start_date DATE NOT NULL,
     end_date DATE NOT NULL,
+    sale_event_id INT NULL,
 
     CONSTRAINT CK_Discount_Type CHECK (discount_type IN ('Seasonal', 'Clearance', 'Promotional', 'Member')),
     CONSTRAINT CK_Discount_Percent CHECK (discount_percent >= 0 AND discount_percent <= 100),
     CONSTRAINT CK_Discount_Dates CHECK (end_date >= start_date),
-    CONSTRAINT FK_Discount_Sale_Event FOREIGN KEY (discount_id) REFERENCES Sale_Event(sale_event_id)
+    CONSTRAINT FK_Discount_Sale_Event FOREIGN KEY (sale_event_id) REFERENCES Sale_Event(sale_event_id)
 );
 GO
 
@@ -130,7 +131,7 @@ CREATE TABLE Product (
     discount_id INT NULL,
     reorder_threshold INT NOT NULL,
 
-        CONSTRAINT CK_Product_Reorder_Threshold CHECK (reorder_threshold >= 0),
+    CONSTRAINT CK_Product_Reorder_Threshold CHECK (reorder_threshold >= 0),
     CONSTRAINT FK_Product_Category FOREIGN KEY (category_id) REFERENCES Category(category_id),
     CONSTRAINT FK_Product_Supplier FOREIGN KEY (supplier_id) REFERENCES Supplier(supplier_id),
     CONSTRAINT FK_Product_Discount FOREIGN KEY (discount_id) REFERENCES Discount(discount_id),
