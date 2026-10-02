@@ -76,6 +76,16 @@ CREATE TABLE Customer (
 );
 GO
 
+CREATE TABLE Sale_Event (
+    sale_event_id INT PRIMARY KEY,
+    sale_event_name NVARCHAR(100) NOT NULL,
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+
+    CONSTRAINT CK_Sale_Event_Dates CHECK (end_date >= start_date)
+);
+GO
+
 CREATE TABLE Discount (
     discount_id INT PRIMARY KEY,
     discount_name NVARCHAR(100) NOT NULL,
@@ -86,7 +96,8 @@ CREATE TABLE Discount (
 
     CONSTRAINT CK_Discount_Type CHECK (discount_type IN ('Seasonal', 'Clearance', 'Promotional', 'Member')),
     CONSTRAINT CK_Discount_Percent CHECK (discount_percent >= 0 AND discount_percent <= 100),
-    CONSTRAINT CK_Discount_Dates CHECK (end_date >= start_date)
+    CONSTRAINT CK_Discount_Dates CHECK (end_date >= start_date),
+    CONSTRAINT FK_Discount_Sale_Event FOREIGN KEY (discount_id) REFERENCES Sale_Event(sale_event_id)
 );
 GO
 
@@ -144,7 +155,7 @@ CREATE TABLE Sales_Transaction (
     transaction_id INT PRIMARY KEY,
     customer_id INT NULL,
     employee_id INT NOT NULL,
-    transaction_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    transaction_date DATETIME NOT NULL,
     total_amount DECIMAL(10, 2) NOT NULL,
 
     CONSTRAINT FK_Sales_Transaction_Customer FOREIGN KEY (customer_id) REFERENCES Customer(customer_id),
