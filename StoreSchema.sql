@@ -66,7 +66,7 @@ CREATE TABLE Customer (
     program_id INT NULL,
     tier_id INT NULL,
     referred_by_id INT NULL,
-    loyalty_points INT NOT NULL DEFAULT 0,
+    loyalty_points INT NOT NULL,
 
     CONSTRAINT FK_Customer_Program FOREIGN KEY (program_id) REFERENCES Reward_Program(program_id),
     CONSTRAINT FK_Customer_Tier FOREIGN KEY (tier_id) REFERENCES Reward_Tier(tier_id),
@@ -113,13 +113,13 @@ CREATE TABLE Product (
     sku VARCHAR(50) UNIQUE NOT NULL,
     product_name NVARCHAR(100) NOT NULL,
     price DECIMAL(10, 2) NOT NULL,
-    stock_quantity INT NOT NULL DEFAULT 0,
+    stock_quantity INT NOT NULL,
     category_id INT NOT NULL,
     supplier_id INT NOT NULL,
     discount_id INT NULL,
-    reorder_threshold INT NOT NULL DEFAULT 5,
+    reorder_threshold INT NOT NULL,
 
-    CONSTRAINT CK_Product_Reorder_Threshold CHECK (reorder_threshold >= 0),
+        CONSTRAINT CK_Product_Reorder_Threshold CHECK (reorder_threshold >= 0),
     CONSTRAINT FK_Product_Category FOREIGN KEY (category_id) REFERENCES Category(category_id),
     CONSTRAINT FK_Product_Supplier FOREIGN KEY (supplier_id) REFERENCES Supplier(supplier_id),
     CONSTRAINT FK_Product_Discount FOREIGN KEY (discount_id) REFERENCES Discount(discount_id),
@@ -131,7 +131,7 @@ GO
 CREATE TABLE Low_Stock_Alert (
     alert_id INT PRIMARY KEY,
     product_id INT NOT NULL,
-    alert_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    alert_date DATETIME NOT NULL,
     stock_quantity INT NOT NULL,
     resolved_date DATETIME NULL,
 
@@ -156,7 +156,7 @@ GO
 CREATE TABLE Sales_Transaction_Item (
     transaction_id INT NOT NULL,
     product_id INT NOT NULL,
-    quantity INT NOT NULL DEFAULT 1,
+    quantity INT NOT NULL,
     unit_price DECIMAL(10, 2) NOT NULL,
 
     CONSTRAINT PK_Sales_Transaction_Item PRIMARY KEY (transaction_id, product_id),
@@ -173,7 +173,7 @@ CREATE TABLE Review (
     customer_id INT NOT NULL,
     rating INT NOT NULL,
     review_text NVARCHAR(1000) NULL,
-    review_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    review_date DATETIME NOT NULL,
 
     CONSTRAINT FK_Review_Product FOREIGN KEY (product_id) REFERENCES Product(product_id),
     CONSTRAINT FK_Review_Customer FOREIGN KEY (customer_id) REFERENCES Customer(customer_id),
