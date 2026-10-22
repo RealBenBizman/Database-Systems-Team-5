@@ -213,3 +213,29 @@ BEGIN
         THROW 50002, 'Reward programs cannot have overlapping dates.', 1;
 END;
 GO
+
+-- TRIGGER 6: TR_SALES_TRANSACTION_StatusFlow
+-- When a SALES_TRANSACTION row is updated:
+-- a) reject any status change away from 'completed' or 'voided' (error 50003)
+-- Why: trigger 1 fires on every open -> completed. If a finished sale could
+-- be reopened and completed again, stock woul be subtracted twice and the customer
+-- would earn points twice. Updates that do not touch Status are ignored.
+CREATE OR ALTER TRIGGER TR_SALES_TRANSACTION_StatusFlow
+ON SALES_TRANSACTION
+AFTER UPDATE
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    IF NOT UPDATE(Status) RETURN;
+
+    IF EXISTS (
+      SELECT 1
+      FROM   inserted i
+      JOIN   deleted d on d.Transaction_id = i.Transaction_id
+      WHERE  d.Status IN ('completed', 'voided')
+        AND  i.Status <> d.Status)
+      THROW 50003, 'Cannot change status of a completed or voided sale.', 1;
+END;
+GO
