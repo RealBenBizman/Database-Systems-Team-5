@@ -9,9 +9,9 @@ if (fs.existsSync(envFile)) {
 
 const { signToken } = require('../lib/auth');
 
-function mockReq({ method = 'GET', body, role } = {}) {
+function mockReq({ method = 'GET', body, role, id = 1 } = {}) {
   const headers = {};
-  if (role) headers.cookie = 'pos_token=' + signToken({ id: 1, role, name: 'Test' });
+  if (role) headers.cookie = 'pos_token=' + signToken({ id, role, name: 'Test' });
   return { method, body, headers };
 }
 
