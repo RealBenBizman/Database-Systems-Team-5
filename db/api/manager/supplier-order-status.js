@@ -37,6 +37,13 @@ module.exports = route({
         throw new HttpError(409, 'Order was changed by someone else. Reload and try again.', 'RULE_VIOLATION');
       }
 
+            // a cancelled order frees its open alert so it can be ordered again
+      if (status === 'Cancelled') {
+        await tx.query(
+          'UPDATE LOW_STOCK_ALERT SET Order_id = NULL WHERE Order_id = @orderId AND Resolved_at IS NULL',
+          { orderId });
+      }
+
       const after = await tx.query(
         'SELECT Status, Received_date FROM SUPPLIER_ORDER WHERE Order_id = @orderId', { orderId });
       return { status: after.recordset[0].Status, receivedDate: after.recordset[0].Received_date };
