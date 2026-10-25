@@ -1,7 +1,7 @@
 /*
    verify.sql - checks that the database matches the final design
 
-   Run it after schema.sql and triggers.sql (before or after seed.sql).
+   Run it after schema.sql, triggers.sql and views.sql (before or after seed.sql).
    It does not change anything. Result sets, in order:
      1) a PASS/FAIL grid of structure counts
      2) the status of every trigger the project plans to have (13 in total)
@@ -17,15 +17,16 @@
    every foreign key is ON DELETE NO ACTION / ON UPDATE NO ACTION (no SET NULL,
    no CASCADE). The grid checks both.
 
-   @expected_triggers is 6 today (the 5 first triggers + TR_SALES_TRANSACTION_StatusFlow).
-   Change it to 13 when every part's triggers have been merged.
+   @expected_triggers is 13: the 5 first triggers, TR_SALES_TRANSACTION_StatusFlow and the
+   7 guard triggers. If you run this before the guard triggers are added, the
+   trigger-count row and the 7 'missing' trigger rows will show FAIL.
 */
 USE pos_store;
 GO
 
 SET NOCOUNT ON;
 
-DECLARE @expected_triggers INT = 6;
+DECLARE @expected_triggers INT = 13;
 
 DECLARE @tables  TABLE (Table_name SYSNAME PRIMARY KEY);
 DECLARE @planned TABLE (Trigger_name SYSNAME PRIMARY KEY, Planned_in NVARCHAR(40));
@@ -63,8 +64,12 @@ VALUES (N'Tables', '27',
        (N'Tables that are not on the expected list', '0',
         (SELECT CAST(COUNT(*) AS NVARCHAR(40)) FROM sys.tables t
          WHERE NOT EXISTS (SELECT 1 FROM @tables x WHERE x.Table_name = t.name))),
-       (N'Views (VW_CART)', '1',
+       (N'Views (VW_CART + 4 report views)', '5',
         (SELECT CAST(COUNT(*) AS NVARCHAR(40)) FROM sys.views WHERE is_ms_shipped = 0)),
+       (N'Report views missing (run views.sql if not 0)', '0',
+        (SELECT CAST(COUNT(*) AS NVARCHAR(40))
+         FROM (VALUES ('VW_SALES_REPORT'), ('VW_SALES_BY_CATEGORY'), ('VW_INVENTORY_REPORT'), ('VW_REWARDS_REPORT')) x(n)
+         WHERE NOT EXISTS (SELECT 1 FROM sys.views v WHERE v.name = x.n))),
        (N'Foreign keys', '43',
         (SELECT CAST(COUNT(*) AS NVARCHAR(40)) FROM sys.foreign_keys)),
        (N'Foreign keys with any action other than NO ACTION (must be 0)', '0',

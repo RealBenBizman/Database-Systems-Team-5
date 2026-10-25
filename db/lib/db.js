@@ -21,7 +21,7 @@ function flag(value, fallback) {
 
 function buildConfig(env = process.env) {
     for (const name of ['DB_SERVER', 'DB_DATABASE', 'DB_USER', 'DB_PASSWORD']) {
-        if (!env[name]) throw new Error('Missing environment variable ${name}');
+        if (!env[name]) throw new Error(`Missing environment variable ${name}`);
     }
     const config = {
         server: env.DB_SERVER,
@@ -29,7 +29,7 @@ function buildConfig(env = process.env) {
         user: env.DB_USER,
         password: env.DB_PASSWORD,
         options: {
-            encrypt: flag(env.DB_EBCRYPT, true),
+            encrypt: flag(env.DB_ENCRYPT, true),
             trustServerCertificate: flag(env.DB_TRUST_SERVER_CERT, false),
         },
         pool: { max: 5, min: 0, idleTimeoutMillis: 30000},
@@ -60,7 +60,7 @@ function getPool() {
 //parameters: {name: value} or {name: {type: sql.Int, value: 5}}
 function bind(request, params) {
     for (const [name, p] of Object.entries(params || {})) {
-        if (p != null && typeof p === 'object' && type in p && 'value' in p) {
+        if (p != null && typeof p === 'object' && 'type' in p && 'value' in p) {
             request.input(name, p.type, p.value);
         }
         else {
