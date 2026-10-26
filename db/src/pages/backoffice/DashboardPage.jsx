@@ -1,32 +1,36 @@
-// Employee dashboard: three counts. Support and managers can see it.
+// Employee dashboard: three counts. Each box links to the screen that deals with it.
 import { useEffect, useState } from 'react';
+import { api } from '../../shared/api.js';
+import { Card, ErrorBanner, PageHeader, Spinner } from '../../shared/ui.jsx';
 
 export default function DashboardPage() {
   const [counts, setCounts] = useState(null);   // null = still loading
   const [error, setError] = useState('');
 
   useEffect(() => {
-    fetch('/api/manager/dashboard')
-      .then(async (r) => {
-        const body = await r.json();
-        if (!r.ok) throw new Error(body.error || 'Could not load the dashboard.');
-        setCounts(body);
-      })
+    api.get('/api/manager/dashboard')
+      .then(setCounts)
       .catch((e) => setError(e.message));
   }, []);
 
-  if (error) return <p style={{ color: 'crimson' }}>{error}</p>;
-  if (counts === null) return <p>Loading...</p>;
-
-  const box = { border: '1px solid #ccc', borderRadius: 8, padding: 16, minWidth: 160 };
   return (
-    <section style={{ fontFamily: 'sans-serif', padding: 24 }}>
-      <h1>Dashboard</h1>
-      <div style={{ display: 'flex', gap: 16 }}>
-        <div style={box}><h2>{counts.openAlerts}</h2><p>Open low-stock alerts</p></div>
-        <div style={box}><h2>{counts.pendingOrders}</h2><p>Pending supplier orders</p></div>
-        <div style={box}><h2>{counts.returnsWaiting}</h2><p>Returns waiting</p></div>
-      </div>
-    </section>
+    <>
+      <PageHeader title="Dashboard" subtitle="What needs attention right now." />
+      <ErrorBanner>{error}</ErrorBanner>
+      {counts === null && !error && <Spinner />}
+      {counts && (
+        <div className="grid">
+          <Card title={String(counts.openAlerts)} to="/staff/inventory">
+            <p className="card-muted">Open low-stock alerts</p>
+          </Card>
+          <Card title={String(counts.pendingOrders)} to="/staff/suppliers">
+            <p className="card-muted">Pending supplier orders</p>
+          </Card>
+          <Card title={String(counts.returnsWaiting)} to="/staff/returns">
+            <p className="card-muted">Returns waiting</p>
+          </Card>
+        </div>
+      )}
+    </>
   );
 }

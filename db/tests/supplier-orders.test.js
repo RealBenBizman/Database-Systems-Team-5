@@ -11,19 +11,26 @@ beforeAll(async () => {
   managerId = m.recordset[0].Employee_id;
   const s = await db.query('SELECT TOP 1 Supplier_id FROM SUPPLIER WHERE Marked_for_deletion = 0');
   supplierId = s.recordset[0].Supplier_id;
-  const a = await db.query(`SELECT TOP 1 Alert_id FROM LOW_STOCK_ALERT
-    WHERE Resolved_at IS NULL AND Order_id IS NULL AND Marked_for_deletion = 0`);
-  alertId = a.recordset[0].Alert_id;
+
+  // make our own open alert so the test never depends on leftover data
+  const p = await db.query('SELECT TOP 1 Product_id FROM PRODUCT WHERE Marked_for_deletion = 0 ORDER BY Product_id');
+  const made = await db.query(
+    'INSERT INTO LOW_STOCK_ALERT (Product_id) VALUES (@productId); SELECT SCOPE_IDENTITY() AS id;',
+    { productId: p.recordset[0].Product_id });
+  alertId = made.recordset[0].id;
 });
 
-// Undo what the test made: unlink the alert and mark the test order deleted.
+// Undo what the test made: unlink the alert, hide it, and mark the test order deleted.
 afterAll(async () => {
+  await db.query(
+    'UPDATE LOW_STOCK_ALERT SET Order_id = NULL, Marked_for_deletion = 1 WHERE Alert_id = @alertId',
+    { alertId });
   if (orderId) {
-    await db.query('UPDATE LOW_STOCK_ALERT SET Order_id = NULL WHERE Alert_id = @alertId', { alertId });
     await db.query('UPDATE SUPPLIER_ORDER SET Marked_for_deletion = 1 WHERE Order_id = @orderId', { orderId });
   }
   await (await db.getPool()).close();
 });
+
 
 test('suppliers list works', async () => {
   const res = await call(suppliers, { role: 'support' });

@@ -1,23 +1,10 @@
 // Supplier orders: start an order from a low-stock alert, then move it along.
 import { useEffect, useState } from 'react';
+import { api } from '../../shared/api.js';
+import { Banner, Button, ErrorBanner, PageHeader, Spinner, Table } from '../../shared/ui.jsx';
 
 // the only buttons we offer for each status
 const NEXT = { Pending: ['Ordered', 'Cancelled'], Ordered: ['Received', 'Cancelled'] };
-
-async function api(url, options) {
-  const r = await fetch(url, options);
-  const body = await r.json();
-  if (!r.ok) throw new Error(body.error || 'Something went wrong.');
-  return body;
-}
-
-function post(url, data) {
-  return api(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  });
-}
 
 export default function SupplierOrdersPage() {
   const [alerts, setAlerts] = useState(null);     // null = still loading
@@ -29,9 +16,9 @@ export default function SupplierOrdersPage() {
 
   function load() {
     Promise.all([
-      api('/api/manager/alerts'),
-      api('/api/manager/supplier-orders'),
-      api('/api/manager/suppliers'),
+      api.get('/api/manager/alerts'),
+      api.get('/api/manager/supplier-orders'),
+      api.get('/api/manager/suppliers'),
     ])
       .then(([a, o, s]) => {
         setAlerts(a.alerts);
@@ -52,7 +39,7 @@ export default function SupplierOrdersPage() {
     setMessage('');
     setError('');
     try {
-      const body = await post('/api/manager/supplier-orders', {
+      const body = await api.post('/api/manager/supplier-orders', {
         alertId,
         supplierId: Number(p.supplierId),
         quantity: Number(p.quantity),
@@ -68,7 +55,7 @@ export default function SupplierOrdersPage() {
     setMessage('');
     setError('');
     try {
-      const body = await post('/api/manager/supplier-order-status', { orderId, status });
+      const body = await api.post('/api/manager/supplier-order-status', { orderId, status });
       setMessage('Order ' + orderId + ' is now ' + body.status + '.');
       load();
     } catch (e) {
@@ -76,88 +63,72 @@ export default function SupplierOrdersPage() {
     }
   }
 
-  if (error && alerts === null) return <p style={{ color: 'crimson' }}>{error}</p>;
-  if (alerts === null || orders === null) return <p>Loading...</p>;
+  const header = <PageHeader title="Supplier orders" subtitle="Order stock for low-stock alerts, then receive it." />;
 
-  const needOrder = alerts.filter((a) => a.orderId === null);
+  if (alerts === null && error) return <>{header}<ErrorBanner>{error}</ErrorBanner></>;
+  if (alerts === null || orders === null) return <>{header}<Spinner /></>;
+
+  const alertColumns = [
+    { key: 'name', label: 'Product' },
+    { key: 'stock', label: 'Stock', numeric: true },
+    { key: 'threshold', label: 'Reorder at', numeric: true },
+    {
+      key: 'supplier', label: 'Supplier',
+      render: (a) => (
+        <select value={(picks[a.alertId] || {}).supplierId || ''}
+          onChange={(e) => setPick(a.alertId, 'supplierId', e.target.value)}>
+          <option value="">Choose supplier</option>
+          {suppliers.map((s) => <option key={s.supplierId} value={s.supplierId}>{s.name}</option>)}
+        </select>
+      ),
+    },
+    {
+      key: 'quantity', label: 'Quantity',
+      render: (a) => (
+        <input type="number" min="1" style={{ width: 80 }} value={(picks[a.alertId] || {}).quantity || ''}
+          onChange={(e) => setPick(a.alertId, 'quantity', e.target.value)} />
+      ),
+    },
+    {
+      key: 'order', label: '',
+      render: (a) => <Button onClick={() => createOrder(a.alertId)}>Order</Button>,
+    },
+  ];
+
+  const orderColumns = [
+    { key: 'orderId', label: 'Order' },
+    { key: 'supplier', label: 'Supplier' },
+    { key: 'orderDate', label: 'Date', render: (o) => String(o.orderDate).slice(0, 10) },
+    { key: 'itemCount', label: 'Items', numeric: true },
+    { key: 'totalCost', label: 'Total', numeric: true, render: (o) => '$' + Number(o.totalCost).toFixed(2) },
+    { key: 'status', label: 'Status' },
+    {
+      key: 'actions', label: '',
+      render: (o) => (
+        <div className="row">
+          {(NEXT[o.status] || []).map((next) => (
+            <Button key={next} variant={next === 'Cancelled' ? 'danger' : 'secondary'}
+              onClick={() => changeStatus(o.orderId, next)}>
+              {next}
+            </Button>
+          ))}
+        </div>
+      ),
+    },
+  ];
 
   return (
-    <section style={{ fontFamily: 'sans-serif', padding: 24 }}>
-      <h1>Supplier orders</h1>
-      {message && <p style={{ color: 'green' }}>{message}</p>}
-      {error && <p style={{ color: 'crimson' }}>{error}</p>}
+    <>
+      {header}
+      {message && <Banner kind="success">{message}</Banner>}
+      <ErrorBanner>{error}</ErrorBanner>
 
       <h2>Low-stock alerts without an order</h2>
-      {needOrder.length === 0 ? (
-        <p>No alerts need an order.</p>
-      ) : (
-        <table cellPadding="6" style={{ borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ textAlign: 'left' }}>
-              <th>Product</th><th>Stock</th><th>Reorder at</th><th>Supplier</th><th>Quantity</th><th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {needOrder.map((a) => {
-              const p = picks[a.alertId] || {};
-              return (
-                <tr key={a.alertId} style={{ borderTop: '1px solid #ccc' }}>
-                  <td>{a.name}</td>
-                  <td>{a.stock}</td>
-                  <td>{a.threshold}</td>
-                  <td>
-                    <select value={p.supplierId || ''}
-                      onChange={(e) => setPick(a.alertId, 'supplierId', e.target.value)}>
-                      <option value="">Choose supplier</option>
-                      {suppliers.map((s) => (
-                        <option key={s.supplierId} value={s.supplierId}>{s.name}</option>
-                      ))}
-                    </select>
-                  </td>
-                  <td>
-                    <input type="number" min="1" style={{ width: 70 }} value={p.quantity || ''}
-                      onChange={(e) => setPick(a.alertId, 'quantity', e.target.value)} />
-                  </td>
-                  <td><button onClick={() => createOrder(a.alertId)}>Order</button></td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      )}
+      <Table columns={alertColumns} rows={alerts.filter((a) => a.orderId === null)}
+        rowKey="alertId" empty="No alerts need an order." />
 
-      <h2>All orders</h2>
-      {orders.length === 0 ? (
-        <p>No orders yet.</p>
-      ) : (
-        <table cellPadding="6" style={{ borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ textAlign: 'left' }}>
-              <th>Order</th><th>Supplier</th><th>Date</th><th>Items</th><th>Total</th><th>Status</th><th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {orders.map((o) => (
-              <tr key={o.orderId} style={{ borderTop: '1px solid #ccc' }}>
-                <td>{o.orderId}</td>
-                <td>{o.supplier}</td>
-                <td>{String(o.orderDate).slice(0, 10)}</td>
-                <td>{o.itemCount}</td>
-                <td>${Number(o.totalCost).toFixed(2)}</td>
-                <td>{o.status}</td>
-                <td>
-                  {(NEXT[o.status] || []).map((next) => (
-                    <button key={next} style={{ marginRight: 6 }}
-                      onClick={() => changeStatus(o.orderId, next)}>
-                      {next}
-                    </button>
-                  ))}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </section>
+      <h2 style={{ marginTop: 24 }}>All orders</h2>
+      <Table columns={orderColumns} rows={orders} rowKey="orderId" empty="No orders yet." />
+    </>
   );
 }

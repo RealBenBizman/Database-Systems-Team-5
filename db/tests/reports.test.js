@@ -13,10 +13,10 @@ test('manager gets the inventory report', async () => {
   expect(['Low', 'OK']).toContain(first.level);
 });
 
-test('support is refused (403)', async () => {
-  const res = await call(inventory, { role: 'support' });
-  expect(res.statusCode).toBe(403);
-});
+test('support can read it too', async () => {
+ const res = await call(inventory, { role: 'support' });
+ expect(res.statusCode).toBe(200);
+ });
 
 test('no login is refused (401)', async () => {
   const res = await call(inventory, {});

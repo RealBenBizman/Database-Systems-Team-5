@@ -18,6 +18,10 @@ import Home from './pages/Home.jsx';
 import Login from './pages/Login.jsx';
 import StaffLogin from './pages/StaffLogin.jsx';
 import Register from './pages/Register.jsx';
+import DashboardPage from '../pages/backoffice/DashboardPage.jsx';
+import InventoryPage from '../pages/backoffice/InventoryPage.jsx';
+import SupplierOrdersPage from '../pages/backoffice/SupplierOrdersPage.jsx';
+import InventoryReportPage from '../pages/reports/InventoryReportPage.jsx';
 
 const Soon = ComingSoon;
 
@@ -53,10 +57,11 @@ export const routes = [
   { path: '/staff/reports/rewards', access: MANAGER, nav: 'Rewards report', summary: 'Points, tiers and top earners.', element: <Soon title="Rewards report" owner="Part 3" />, owner: 'Part 3' },
 
   // ---- Part 4: back office ----
-  { path: '/staff/inventory', access: STAFF, nav: 'Inventory', summary: 'Stock levels and low-stock alerts.', element: <Soon title="Inventory" owner="Part 4" />, owner: 'Part 4' },
-  { path: '/staff/reports/inventory', access: STAFF, nav: 'Inventory report', summary: 'Stock value and status per product.', element: <Soon title="Inventory report" owner="Part 4" />, owner: 'Part 4' },
+  { path: '/staff/dashboard', access: STAFF, nav: 'Alerts overview', summary: 'Open alerts, pending supplier orders and returns waiting.', element: <DashboardPage />, owner: 'Part 4' },
+  { path: '/staff/inventory', access: STAFF, nav: 'Inventory', summary: 'Stock levels and low-stock alerts.', element: <InventoryPage />, owner: 'Part 4' },
+  { path: '/staff/reports/inventory', access: STAFF, nav: 'Inventory report', summary: 'Stock value and status per product.', element: <InventoryReportPage />, owner: 'Part 4' },
   { path: '/staff/products', access: MANAGER, nav: 'Products', summary: 'Create and edit products, prices and discounts.', element: <Soon title="Products" owner="Part 4" />, owner: 'Part 4' },
-  { path: '/staff/suppliers', access: MANAGER, nav: 'Supplier orders', summary: 'Order stock from suppliers and receive it.', element: <Soon title="Supplier orders" owner="Part 4" />, owner: 'Part 4' },
+  { path: '/staff/suppliers', access: MANAGER, nav: 'Supplier orders', summary: 'Order stock from suppliers and receive it.', element: <SupplierOrdersPage />, owner: 'Part 4' },
   { path: '/staff/customers', access: MANAGER, nav: 'Customer lookup', summary: 'Find a customer or an order.', element: <Soon title="Customer lookup" owner="Part 4" />, owner: 'Part 4' },
   { path: '/staff/settings', access: MANAGER, nav: 'Settings', summary: 'Categories, tax rates and reward programs.', element: <Soon title="Settings" owner="Part 4" />, owner: 'Part 4' },
 ];

@@ -25,7 +25,7 @@ const ORDERS_SQL = `
 
 module.exports = route({
   GET: async (req) => {
-    requireAuth(req, ['manager']);
+    requireAuth(req, ['support', 'manager'])
     const products = await query(PRODUCTS_SQL);
     const orders = await query(ORDERS_SQL);
     return { products: products.recordset, ordersByStatus: orders.recordset };
