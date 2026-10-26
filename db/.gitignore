@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.vercel/
+coverage/
+
+.env
+.env.*
+!.env.example
+
+*.bak
+.DS_Store
