@@ -1,10 +1,23 @@
-// POST /api/checkout  body: { method: 'credit' | 'debit', cardLast4: '4242' }
+// GET  /api/checkout -> the signed-in customer's cart and default address (for the checkout page)
+// POST /api/checkout  body: { method: 'credit' | 'debit', cardLast4: '4242' } -> places the order
 // Customers only. sp_Checkout computes prices, tax and totals in the database.
 const { route, HttpError, readBody } = require('../../lib/http');
 const { query, sql } = require('../../lib/db');
 const { requireAuth } = require('../../lib/auth');
 
 module.exports = route({
+  GET: async (req) => {
+    const user = requireAuth(req, ['customer']);
+    const cart = await query(
+      `SELECT Product_id, Product_name, Sell_price, Quantity, Line_total
+       FROM VW_CART WHERE Customer_id = @cid ORDER BY Added_at`, { cid: user.id });
+    const addr = await query(
+      `SELECT Recipient_name, Street, Apt, City, State, Zip
+       FROM CUSTOMER_ADDRESS
+       WHERE Customer_id = @cid AND is_default = 1 AND Marked_for_deletion = 0`, { cid: user.id });
+    return { items: cart.recordset, address: addr.recordset[0] || null };
+  },
+
   POST: async (req) => {
     const user = requireAuth(req, ['customer']);
     const body = readBody(req);
