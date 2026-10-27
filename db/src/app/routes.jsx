@@ -19,6 +19,12 @@ import Login from './pages/Login.jsx';
 import StaffLogin from './pages/StaffLogin.jsx';
 import Register from './pages/Register.jsx';
 
+import Checkout from './pages/Checkout.jsx';
+import OrderConfirmation from './pages/OrderConfirmation.jsx';
+import Orders from './pages/Orders.jsx';
+import OrderDetail from './pages/OrderDetail.jsx';
+import SalesReport from './pages/SalesReport.jsx';
+
 const Soon = ComingSoon;
 
 const CUSTOMER = ['customer'];
@@ -40,11 +46,12 @@ export const routes = [
   { path: '/notifications', access: CUSTOMER, nav: 'Notifications', element: <Soon title="Notifications" owner="Part 1" />, owner: 'Part 1' },
 
   // ---- Part 2: checkout and orders ----
-  { path: '/checkout', access: CUSTOMER, element: <Soon title="Checkout" owner="Part 2" />, owner: 'Part 2' },
-  { path: '/orders', access: CUSTOMER, nav: 'My orders', element: <Soon title="My orders" owner="Part 2" />, owner: 'Part 2' },
-  { path: '/orders/:id', access: CUSTOMER, element: <Soon title="Order" owner="Part 2" />, owner: 'Part 2' },
-  { path: '/staff/reports/sales', access: MANAGER, nav: 'Sales report', summary: 'Revenue, orders and units by day and category.', element: <Soon title="Sales report" owner="Part 2" />, owner: 'Part 2' },
-
+  { path: '/checkout', access: CUSTOMER, element: <Checkout />, owner: 'Part 2' },
+  { path: '/checkout/confirmation/:id', access: CUSTOMER, element: <OrderConfirmation />, owner: 'Part 2' },
+  { path: '/orders', access: CUSTOMER, nav: 'My orders', element: <Orders />, owner: 'Part 2' },
+  { path: '/orders/:id', access: CUSTOMER, element: <OrderDetail />, owner: 'Part 2' },
+  { path: '/staff/reports/sales', access: MANAGER, nav: 'Sales report', summary: 'Revenue, orders and units by day and category.', element: <SalesReport />, owner: 'Part 2' },
+  
   // ---- Part 3: returns and rewards ----
   { path: '/returns', access: CUSTOMER, nav: 'Returns', element: <Soon title="My returns" owner="Part 3" />, owner: 'Part 3' },
   { path: '/returns/new', access: CUSTOMER, element: <Soon title="Request a return" owner="Part 3" />, owner: 'Part 3' },
