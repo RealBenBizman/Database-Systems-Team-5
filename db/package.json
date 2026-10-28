@@ -7,11 +7,16 @@
         "node": ">=22.12.0"
     },
     "scripts": {
+        "start": "vite",
         "dev": "vite",
         "build": "vite build",
         "preview": "vite preview",
         "test": "jest",
-        "check:db": "node scripts/check-db.js"
+        "check:db": "node scripts/check-db.js",
+        "check:auth": "node scripts/check-auth.js",
+        "routes": "node scripts/build-routes.js",
+        "prebuild": "node scripts/build-routes.js",
+        "azure:prepare": "node scripts/azure-prepare.js"
     },
     "jest": {
         "testEnvironment": "node",

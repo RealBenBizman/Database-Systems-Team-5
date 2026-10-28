@@ -7,23 +7,26 @@ import react from '@vitejs/plugin-react';
 /*
    Local API server (development only).
 
-   On Vercel every file in api/ is its own serverless function. Locally,
-   "npm start" runs Vite, and this plugin sends every /api/... request to the
-   matching file in api/, the same way Vercel does:
+   On Vercel one function (api/[...path].js) answers every /api/... request and
+   forwards it to the matching file in server/. Locally, "npm start" runs Vite,
+   and this plugin does the same forwarding:
 
-     /api/auth/login        -> api/auth/login.js
-     /api/products          -> api/products.js  or  api/products/index.js
-     /api/products/42       -> api/products/[id].js   (req.query.id = '42')
+     /api/auth/login        -> server/auth/login.js
+     /api/products          -> server/products.js  or  server/products/index.js
+     /api/products/42       -> server/products/[id].js   (req.query.id = '42')
 
    The handler gets req.body (parsed JSON), req.query, and the plain res.
-   Code in api/ and lib/ is reloaded on every request, so you can edit it
+   Code in server/ and lib/ is reloaded on every request, so you can edit it
    without restarting; the database pool and the login throttle are kept.
 */
 const require = createRequire(import.meta.url);
 const root = process.cwd();
+// The endpoint files live in server/ (the only file in api/ is the single Vercel function that
+// forwards to them; see lib/router.js). Locally this plugin reads server/ directly.
+const API_DIR = 'server';
 
 function resolveApiFile(segments) {
-  let dir = path.join(root, 'api');
+  let dir = path.join(root, API_DIR);
   const params = {};
   for (let i = 0; i < segments.length; i++) {
     const last = i === segments.length - 1;
@@ -63,7 +66,7 @@ function reloadProjectCode() {
   const keep = [`${path.sep}lib${path.sep}db.js`, `${path.sep}lib${path.sep}throttle.js`];
   for (const key of Object.keys(require.cache)) {
     if (key.includes('node_modules')) continue;
-    const inProject = key.startsWith(path.join(root, 'api')) || key.startsWith(path.join(root, 'lib'));
+    const inProject = key.startsWith(path.join(root, API_DIR)) || key.startsWith(path.join(root, 'lib'));
     if (inProject && !keep.some((k) => key.endsWith(k))) delete require.cache[key];
   }
 }

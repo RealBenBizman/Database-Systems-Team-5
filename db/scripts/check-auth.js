@@ -18,11 +18,11 @@ if (fs.existsSync(envFile)) process.loadEnvFile(envFile);
 
 const { mockReq, mockRes, cookieFrom } = require('../tests/helpers');
 const db = require('../lib/db');
-const login = require('../api/auth/login');
-const employeeLogin = require('../api/auth/employee-login');
-const register = require('../api/auth/register');
-const logout = require('../api/auth/logout');
-const me = require('../api/auth/me');
+const login = require('../server/auth/login');
+const employeeLogin = require('../server/auth/employee-login');
+const register = require('../server/auth/register');
+const logout = require('../server/auth/logout');
+const me = require('../server/auth/me');
 
 let failures = 0;
 function check(label, ok, detail) {

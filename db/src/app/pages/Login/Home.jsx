@@ -1,6 +1,6 @@
-import { useAuth, isStaff } from '../../shared/auth.jsx';
-import { Button, Card } from '../../shared/ui.jsx';
-import { STORE_NAME, STORE_TAGLINE } from '../../shared/config.js';
+import { useAuth, isStaff } from '../../../shared/auth.jsx';
+import { Button, Card } from '../../../shared/ui.jsx';
+import { STORE_NAME, STORE_TAGLINE } from '../../../shared/config.js';
 
 // The five things the store sells. Part 1's catalog reads the real categories from the database.
 const SECTIONS = [

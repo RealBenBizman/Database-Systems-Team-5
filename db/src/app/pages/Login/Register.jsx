@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
-import { useAuth, isStaff } from '../../shared/auth.jsx';
-import { Button, Card, ErrorBanner, Field, Spinner } from '../../shared/ui.jsx';
+import { useAuth, isStaff } from '../../../shared/auth.jsx';
+import { Button, Card, ErrorBanner, Field, Spinner } from '../../../shared/ui.jsx';
 
 // The same rules as lib/validate.js on the server. The server check is the one that counts;
 // these give quick feedback while typing.

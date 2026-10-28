@@ -1,4 +1,4 @@
-import { EmptyState, Button } from '../../shared/ui.jsx';
+import { EmptyState, Button } from '../../../shared/ui.jsx';
 
 export default function NotFound() {
   return (

@@ -1,5 +1,5 @@
 // Placeholder shown until a teammate replaces the route's element in src/app/routes.jsx.
-import { PageHeader, Card } from '../../shared/ui.jsx';
+import { PageHeader, Card } from '../../../shared/ui.jsx';
 
 export default function ComingSoon({ title, owner }) {
   return (
