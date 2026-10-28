@@ -35,7 +35,7 @@ const manual = [];
 for (const file of walk(root)) {
   const rel = path.relative(root, file);
   // these files talk about both folders on purpose
-  if ([path.join('api', '[...path].js'), path.join('scripts', 'fix-api-paths.js'), path.join('tests', 'routes.test.js')].includes(rel)) continue;
+  if ([path.join('api', 'index.js'), path.join('scripts', 'fix-api-paths.js'), path.join('tests', 'routes.test.js')].includes(rel)) continue;
   const text = fs.readFileSync(file, 'utf8');
   let count = 0;
   const next = text.replace(IMPORT, (match, quote, dots) => {

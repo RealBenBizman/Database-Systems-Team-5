@@ -4,7 +4,7 @@
    Run from the repo root:   npm run routes      (also runs before "npm run build")
 
    Writes lib/routes.generated.js. The list uses plain require('...') lines on purpose:
-   Vercel only packs the files (and the packages they use) that it can see from api/[...path].js,
+   Vercel only packs the files (and the packages they use) that it can see from api/index.js,
    and it can see plain require lines. Commit the generated file. Run this again whenever an
    endpoint file is added, renamed or removed; "npm test" fails if the file is out of date.
 */

@@ -1,5 +1,5 @@
 /*
-   Guards for the single Vercel function (api/[...path].js).
+   Guards for the single Vercel function (api/index.js).
    - routes.generated.js must list exactly the files in server/ (run "npm run routes" if this fails)
    - every listed endpoint can be reached through its own URL
    - the dispatcher fills req.query and answers 404 for unknown paths
@@ -21,7 +21,7 @@ test('lib/routes.generated.js is up to date with server/', () => {
 test('there is exactly one function file in api/', () => {
   const files = fs.readdirSync(path.join(__dirname, '..', 'api'), { recursive: true })
     .filter((f) => f.endsWith('.js'));
-  expect(files).toEqual(['[...path].js']);
+  expect(files).toEqual(['index.js']);
 });
 
 test('every endpoint is reachable through its own URL', () => {
@@ -48,13 +48,19 @@ describe('dispatcher', () => {
       { pattern: 'orders/[id]', load: () => fake },
       { pattern: 'boom', load: () => async () => { throw new Error('bad'); } },
     ]);
-    handler = require('../api/[...path]');
+    handler = require('../api/index');
   });
   afterAll(() => jest.dontMock('../lib/routes.generated'));
 
   test('passes the query string and [id] to the endpoint, without the catch-all name', async () => {
     const res = mockRes();
     const req = { ...mockReq(), url: '/api/orders/1000001?status=open', query: { path: ['orders', '1000001'], status: 'open' } };
+    await handler(req, res);
+    expect(res.json.query).toEqual({ status: 'open', id: '1000001' });
+  });
+  test('works when vercel.json rewrote the URL to /api and only the path parameter is left', async () => {
+    const res = mockRes();
+    const req = { ...mockReq(), url: '/api?status=open', query: { path: 'orders/1000001', status: 'open' } };
     await handler(req, res);
     expect(res.json.query).toEqual({ status: 'open', id: '1000001' });
   });

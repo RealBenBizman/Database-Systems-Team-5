@@ -3,7 +3,7 @@
 
    The Vercel free plan (Hobby) allows only 12 serverless functions per deployment,
    and every file in api/ counts as one. So the real endpoint files live in server/
-   (same folders, same file names, same code) and the ONE file in api/ ([...path].js)
+   (same folders, same file names, same code) and the ONE file in api/ (index.js)
    picks the right one. The URLs do not change.
 
      /api/auth/login      -> server/auth/login.js
@@ -21,11 +21,13 @@ function segmentsFromRequest(req) {
   } catch (_) {
     pathname = '';
   }
-  let parts;
+  let parts = [];
   if (pathname === '/api' || pathname.startsWith('/api/')) {
     parts = pathname.split('/').filter(Boolean).slice(1);
-  } else {
-    // The URL was rewritten: fall back to the catch-all parameter Vercel adds.
+  }
+  if (!parts.length) {
+    // The URL was rewritten (vercel.json sends /api/... to the one function): use the
+    // path that Vercel passes along as the "path" parameter.
     const q = req.query && req.query.path;
     parts = Array.isArray(q) ? q : q ? String(q).split('/') : [];
   }
