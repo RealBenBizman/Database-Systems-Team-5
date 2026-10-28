@@ -1,8 +1,8 @@
 // Shared by the customer and staff sign-in pages.
 import { useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { useAuth, isStaff } from '../../shared/auth.jsx';
-import { Button, Card, ErrorBanner, Field, Spinner } from '../../shared/ui.jsx';
+import { useAuth, isStaff } from '../../../shared/auth.jsx';
+import { Button, Card, ErrorBanner, Field, Spinner } from '../../../shared/ui.jsx';
 
 export default function SignInForm({ kind }) {
   const staff = kind === 'staff';

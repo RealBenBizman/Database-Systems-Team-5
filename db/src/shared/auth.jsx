@@ -34,16 +34,24 @@ export function AuthProvider({ children }) {
     return data.user;
   }, []);
 
+  // Asks the server who is signed in right now (used after the profile changes).
+  const refreshUser = useCallback(async () => {
+    const data = await api.get('/api/auth/me');
+    setUser(data.user);
+    return data.user;
+  }, []);
+
   const value = useMemo(() => ({
     user,
     loading,
+    refreshUser,
     loginCustomer: (email, password) => signIn('/api/auth/login', { email, password }),
     loginStaff: (email, password) => signIn('/api/auth/employee-login', { email, password }),
     register: (fields) => signIn('/api/auth/register', fields),
     logout: async () => {
       try { await api.post('/api/auth/logout'); } finally { setUser(null); }
     },
-  }), [user, loading, signIn]);
+  }), [user, loading, signIn, refreshUser]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

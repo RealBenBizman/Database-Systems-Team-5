@@ -25,3 +25,22 @@
 -- SELECT name, is_disabled FROM sys.server_principals WHERE name = 'pos_app';   -- must return 1 row
 -- EXEC xp_readerrorlog 0, 1, N'Login failed', N'pos_app';   -- the reason, with a "State" number
 -- SELECT SERVERPROPERTY('IsIntegratedSecurityOnly') AS windows_only;
+
+/*
+
+Use the query bellow to check the flow of transaction for an specific order
+
+USE pos_store;
+
+DECLARE @id INT = 1000107;   -- change to your order number
+
+SELECT Transaction_id, Customer_id, Status, Subtotal, Tax_amount, Total,
+       Tracking_number, Estimated_arrival, Ship_name, Ship_state
+FROM   SALES_TRANSACTION WHERE Transaction_id = @id;
+
+SELECT Product_id, Quantity, Unit_price, Discount_amount, Line_total
+FROM   TRANSACTION_ITEM WHERE Transaction_id = @id;
+
+SELECT Method, Amount, Card_last4
+FROM   PAYMENT WHERE Transaction_id = @id;
+*/

@@ -1,6 +1,6 @@
 // The employee shell: the landing page for support and managers.
-import { useAuth } from '../../shared/auth.jsx';
-import { Card, PageHeader } from '../../shared/ui.jsx';
+import { useAuth } from '../../../shared/auth.jsx';
+import { Card, PageHeader } from '../../../shared/ui.jsx';
 
 const BLURB = {
   support: 'You can review inventory and low-stock alerts, and handle customer returns (approve, deny and refund).',
