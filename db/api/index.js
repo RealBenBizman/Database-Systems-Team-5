@@ -1,5 +1,5 @@
 /*
-   api/[...path].js - the ONE serverless function of the whole app
+   api/index.js - the ONE serverless function of the whole app
 
    Vercel's free plan allows 12 functions per deployment and counts every file in api/.
    This file answers every /api/... request and hands it to the matching file in server/

@@ -7,7 +7,7 @@ import react from '@vitejs/plugin-react';
 /*
    Local API server (development only).
 
-   On Vercel one function (api/[...path].js) answers every /api/... request and
+   On Vercel one function (api/index.js) answers every /api/... request and
    forwards it to the matching file in server/. Locally, "npm start" runs Vite,
    and this plugin does the same forwarding:
 

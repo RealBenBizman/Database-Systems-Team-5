@@ -27,6 +27,11 @@ describe('segmentsFromRequest', () => {
     expect(segmentsFromRequest({ url: '/somewhere', query: { path: 'orders/7' } })).toEqual(['orders', '7']);
     expect(segmentsFromRequest({ url: '/somewhere' })).toEqual([]);
   });
+  test('uses the "path" parameter when the function is reached as /api (vercel.json rewrite)', () => {
+    expect(segmentsFromRequest({ url: '/api', query: { path: ['products', 'categories'] } })).toEqual(['products', 'categories']);
+    expect(segmentsFromRequest({ url: '/api?path=auth%2Fme', query: { path: 'auth/me' } })).toEqual(['auth', 'me']);
+    expect(segmentsFromRequest({ url: '/api/auth/me', query: { path: 'other' } })).toEqual(['auth', 'me']);
+  });
 });
 
 describe('matchRoute', () => {
