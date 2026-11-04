@@ -18,10 +18,7 @@ export default function Catalog() {
   const [notice, setNotice] = useState('');
   const [actionError, setActionError] = useState(null);
   useEffect(() => { setForm(values(params)); }, [query]);
-  const resource = useLoad(async () => {
-    const [catalog, categories] = await Promise.all([api.get('/api/products', Object.fromEntries(params)), api.get('/api/products/categories')]);
-    return { ...catalog, categories: categories.categories };
-  }, [query]);
+  const resource = useLoad(() => api.get('/api/products', { ...Object.fromEntries(params), withCategories: 'true' }), [query]);
 
   function apply(event) {
     event.preventDefault();
