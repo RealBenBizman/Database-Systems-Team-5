@@ -73,6 +73,18 @@ test.each([{ sort: 'price;DROP' }, { sort: 'constructor' }, { condition: 'Broken
   expect(db.query).not.toHaveBeenCalled();
 });
 
+test('catalog adds the category list only when withCategories=true', async () => {
+  db.query.mockResolvedValue({ recordsets: [[{ id: PRODUCT }], [{ total: 1 }], [{ id: 1, name: 'Games', productCount: 2 }]] });
+  const withList = await call(products, { role: null, query: { withCategories: 'true' } });
+  expect(withList.json.categories).toEqual([{ id: 1, name: 'Games', productCount: 2 }]);
+  expect(db.query.mock.calls[0][0]).toContain('FROM CATEGORY c');
+  db.query.mockClear();
+  db.query.mockResolvedValue({ recordsets: [[{ id: PRODUCT }], [{ total: 1 }]] });
+  const without = await call(products, { role: null });
+  expect(without.json.categories).toBeUndefined();
+  expect(db.query.mock.calls[0][0]).not.toContain('FROM CATEGORY c');
+});
+
 test('product detail returns 404 for an unavailable product', async () => {
   db.query.mockResolvedValue(result());
   expect((await call(product, { role: null, query: { id: PRODUCT } })).statusCode).toBe(404);

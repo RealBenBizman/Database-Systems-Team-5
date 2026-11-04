@@ -3,6 +3,11 @@ const { route, HttpError } = require('../../lib/http');
 const validate = require('../../lib/validate');
 const { id, productSelect, PRODUCT_JOINS, PUBLIC_PRODUCT } = require('../../lib/storefront');
 
+// Same list as GET /api/products/categories. The shop page asks for it together with the
+// products (withCategories=true) so it needs one request fewer. Keep the two in step.
+const CATEGORY_COUNTS = `SELECT c.Category_id AS id, c.Name AS name, COUNT(p.Product_id) AS productCount
+      FROM CATEGORY c LEFT JOIN PRODUCT p ON p.Category_id = c.Category_id AND p.Is_active = 1 AND p.Marked_for_deletion = 0
+      WHERE c.Marked_for_deletion = 0 GROUP BY c.Category_id, c.Name ORDER BY c.Name`;
 const SORTS = { name: 'name, id', price_asc: 'effectivePrice, id', price_desc: 'effectivePrice DESC, id', rating: 'rating DESC, reviewCount DESC, id', newest: 'id DESC' };
 
 module.exports = route({
@@ -41,9 +46,13 @@ module.exports = route({
     }
     if (params.minPrice && params.maxPrice && params.minPrice.value > params.maxPrice.value) throw new HttpError(400, 'Minimum price cannot exceed maximum price.');
     const select = `${productSelect()} FROM PRODUCT p ${PRODUCT_JOINS()} WHERE ${conditions.join(' AND ')}`;
+    const withCategories = q.withCategories === 'true';
     const result = await query(`WITH products AS (${select}) SELECT * FROM products ORDER BY ${SORTS[sort]}
       OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY;
-      SELECT COUNT(*) AS total FROM PRODUCT p ${PRODUCT_JOINS()} WHERE ${conditions.join(' AND ')}`, { ...params, offset: (page - 1) * pageSize, pageSize });
-    return { products: result.recordsets[0], total: result.recordsets[1][0].total, page, pageSize };
+      SELECT COUNT(*) AS total FROM PRODUCT p ${PRODUCT_JOINS()} WHERE ${conditions.join(' AND ')}${withCategories ? `;
+      ${CATEGORY_COUNTS}` : ''}`, { ...params, offset: (page - 1) * pageSize, pageSize });
+    const body = { products: result.recordsets[0], total: result.recordsets[1][0].total, page, pageSize };
+    if (withCategories) body.categories = result.recordsets[2];
+    return body;
   },
 });
