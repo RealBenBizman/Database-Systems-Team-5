@@ -95,6 +95,46 @@ describe('POST /api/auth/login (customers)', () => {
   });
 });
 
+describe('POST /api/auth/login (one sign-in for customers and staff)', () => {
+  test.each([['Manager', 'manager'], ['Support', 'support']])('an employee email signs in through /login as %s', async (dbRole, role) => {
+    query.mockResolvedValue(rows({ id: 1000001, name: 'Sam', password_hash: hash, role: dbRole }));
+    const res = await post(login, { email: 'manager@posstore.test', password: 'Password123!' });
+    expect(res.statusCode).toBe(200);
+    expect(res.json).toEqual({ user: { id: 1000001, name: 'Sam', role } });
+    expect(res.headers['set-cookie']).toMatch(/pos_token=.+HttpOnly/);
+  });
+
+  test('it looks in both CUSTOMER and EMPLOYEE and skips rows marked for deletion', async () => {
+    query.mockResolvedValue(rows());
+    await post(login, { email: 'x@posstore.test', password: 'Password123!' });
+    const sql = query.mock.calls[0][0];
+    expect(sql).toMatch(/FROM\s+CUSTOMER/);
+    expect(sql).toMatch(/FROM\s+EMPLOYEE/);
+    expect(sql.match(/Marked_for_deletion = 0/g)).toHaveLength(2);
+  });
+
+  test('the same email in both tables: the password decides which account signs in', async () => {
+    const otherHash = await auth.hashPassword('Another123!');
+    query.mockResolvedValue(rows(
+      { id: 1000003, name: 'Pat', password_hash: otherHash, role: 'customer' },
+      { id: 1000002, name: 'Pat', password_hash: hash, role: 'Support' },
+    ));
+    const staff = await post(login, { email: 'pat@posstore.test', password: 'Password123!' });
+    expect(staff.json.user).toEqual({ id: 1000002, name: 'Pat', role: 'support' });
+    const customer = await post(login, { email: 'pat@posstore.test', password: 'Another123!' });
+    expect(customer.json.user).toEqual({ id: 1000003, name: 'Pat', role: 'customer' });
+    expect((await post(login, { email: 'pat@posstore.test', password: 'Nope12345!' })).statusCode).toBe(401);
+  });
+
+  test('a wrong password for an employee is the same 401 as for anyone else', async () => {
+    query.mockResolvedValue(rows({ id: 1000001, name: 'Sam', password_hash: hash, role: 'Manager' }));
+    const res = await post(login, { email: 'manager@posstore.test', password: 'Wrong12345!' });
+    expect(res.statusCode).toBe(401);
+    expect(res.json.error).toBe('Incorrect email or password.');
+    expect(res.headers['set-cookie']).toBeUndefined();
+  });
+});
+
 describe('POST /api/auth/employee-login', () => {
   test.each([['Manager', 'manager'], ['Support', 'support']])('%s row gives role %s', async (dbRole, role) => {
     query.mockResolvedValue(rows({ id: 1000001, name: 'Sam', password_hash: hash, role: dbRole }));

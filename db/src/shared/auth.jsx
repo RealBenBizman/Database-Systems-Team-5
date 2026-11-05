@@ -45,8 +45,7 @@ export function AuthProvider({ children }) {
     user,
     loading,
     refreshUser,
-    loginCustomer: (email, password) => signIn('/api/auth/login', { email, password }),
-    loginStaff: (email, password) => signIn('/api/auth/employee-login', { email, password }),
+    login: (email, password) => signIn('/api/auth/login', { email, password }),
     register: (fields) => signIn('/api/auth/register', fields),
     logout: async () => {
       try { await api.post('/api/auth/logout'); } finally { setUser(null); }

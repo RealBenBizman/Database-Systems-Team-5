@@ -28,9 +28,17 @@ async function signIn(req, res, source){
     throttle.check(key);
 
     const result = await query(source.sql, { email });
-    const row = result.recordset[0];
+    const candidates = result.recordset;
 
-    if (!(await checkPassword(password, row && row.password_hash))) {
+    // Usually one row. The same email in both tables is possible: the password decides which account it is.
+    let row = null;
+    for (const candidate of candidates) {
+        if (await checkPassword(password, candidate.password_hash)) { row = candidate; break; }
+    }
+    // Unknown email: still run one compare so the response time does not reveal it.
+    if (candidates.length === 0) await checkPassword(password, undefined);
+
+    if (!row) {
         throttle.fail(key);
         throw new HttpError(401, BAD_LOGIN, 'BAD_LOGIN');
     }

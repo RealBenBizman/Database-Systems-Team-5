@@ -18,8 +18,7 @@ export default function ProtectedRoute({ roles, children }) {
   if (loading) return <Spinner label="Checking your session..." />;
 
   if (!user) {
-    const staffOnly = roles && roles.length > 0 && roles.every((r) => r === 'support' || r === 'manager');
-    return <Navigate to={staffOnly ? '/staff/login' : '/login'} state={{ from: location.pathname + location.search }} replace />;
+    return <Navigate to="/login" state={{ from: location.pathname + location.search }} replace />;
   }
 
   if (roles && !roles.includes(user.role)) {

@@ -11,7 +11,7 @@ export default function Layout({ navItems }) {
   const staff = isStaff(user);
 
   async function handleLogout() {
-    try { await logout(); } finally { navigate(staff ? '/staff/login' : '/'); }
+    try { await logout(); } finally { navigate(staff ? '/login' : '/'); }
   }
 
   return (
@@ -48,7 +48,7 @@ export default function Layout({ navItems }) {
       </main>
 
       <footer className="app-footer">
-        {STORE_NAME} &middot; online store{!user && <> &middot; <Link to="/staff/login">Staff sign in</Link></>}
+        {STORE_NAME} &middot; online store
       </footer>
     </div>
   );
