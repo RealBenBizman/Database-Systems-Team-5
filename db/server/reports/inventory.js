@@ -1,6 +1,6 @@
 // GET /api/reports/inventory -> stock against reorder threshold, open alerts,
 // inventory value at cost, and how many supplier orders are in each status.
-// Support and managers can read it (decided 2026-10-21). Built on the view
+// Only Managers can read it. Built on the view
 // VW_INVENTORY_REPORT (db/core/views.sql), as the instructor asked.
 const { route } = require('../../lib/http');
 const { query } = require('../../lib/db');
@@ -33,7 +33,7 @@ const STATUSES = ['Pending', 'Ordered', 'Received', 'Cancelled'];
 
 module.exports = route({
   GET: async (req) => {
-    requireAuth(req, ['support', 'manager']);
+    requireAuth(req, ['manager']);
 
     const products = (await query(PRODUCTS_SQL)).recordset;
     const orders = (await query(ORDERS_SQL)).recordset;

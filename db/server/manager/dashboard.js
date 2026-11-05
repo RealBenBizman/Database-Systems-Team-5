@@ -1,5 +1,5 @@
 // GET /api/manager/dashboard -> counts for the employee dashboard
-// Support and managers can read it.
+// Support sees open alerts and returns waiting; managers also see pending supplier orders.
 const { route } = require('../../lib/http');
 const { query } = require('../../lib/db');
 const { requireAuth } = require('../../lib/auth');
@@ -15,8 +15,10 @@ const SQL = `
 
 module.exports = route({
   GET: async (req) => {
-    requireAuth(req, ['support', 'manager']);
-    const result = await query(SQL);
-    return result.recordset[0];
+    const user = requireAuth(req, ['support', 'manager']);
+    const counts = (await query(SQL)).recordset[0];
+    // supplier orders are manager business: support sees alerts and returns only
+    if (user.role !== 'manager') counts.pendingOrders = null;
+    return counts;
   },
 });

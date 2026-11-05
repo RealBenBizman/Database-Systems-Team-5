@@ -1,4 +1,4 @@
-// GET  /api/manager/supplier-orders -> list of orders with totals
+// GET  /api/manager/supplier-orders -> list of orders with totals (managers only).
 // POST /api/manager/supplier-orders  body: { alertId, supplierId, quantity }  (managers only)
 const { route, HttpError, readBody } = require('../../lib/http');
 const { query, withTransaction } = require('../../lib/db');
@@ -19,7 +19,7 @@ const LIST_SQL = `
 
 module.exports = route({
   GET: async (req) => {
-    requireAuth(req, ['support', 'manager']);
+    requireAuth(req, ['manager']);
     const result = await query(LIST_SQL);
     return { orders: result.recordset };
   },

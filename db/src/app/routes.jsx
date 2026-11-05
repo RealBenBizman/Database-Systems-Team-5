@@ -76,9 +76,9 @@ export const routes = [
   { path: '/staff/reports/rewards', access: MANAGER, nav: 'Rewards report', summary: 'Points, tiers and top earners.', element: <RewardsReportPage />, owner: 'Part 3' },
 
   // ---- Part 4: back office ----
-  { path: '/staff/dashboard', access: STAFF, nav: 'Alerts overview', summary: 'Open alerts, pending supplier orders and returns waiting.', element: <DashboardPage />, owner: 'Part 4' },
+  { path: '/staff/dashboard', access: STAFF, nav: 'Alerts overview', summary: 'Open alerts and returns waiting (managers also see pending supplier orders).', element: <DashboardPage />, owner: 'Part 4' },
   { path: '/staff/inventory', access: STAFF, nav: 'Inventory', summary: 'Stock levels and low-stock alerts.', element: <InventoryPage />, owner: 'Part 4' },
-  { path: '/staff/reports/inventory', access: STAFF, nav: 'Inventory report', summary: 'Stock value and status per product.', element: <InventoryReportPage />, owner: 'Part 4' },
+  { path: '/staff/reports/inventory', access: MANAGER, nav: 'Inventory report', summary: 'Stock value and status per product.', element: <InventoryReportPage />, owner: 'Part 4' },
   { path: '/staff/products', access: MANAGER, nav: 'Products', summary: 'Create and edit products, change prices and adjust stock.', element: <ProductsPage />, owner: 'Part 4' },
   { path: '/staff/suppliers', access: MANAGER, nav: 'Supplier orders', summary: 'Order stock from suppliers and receive it.', element: <SupplierOrdersPage />, owner: 'Part 4' },
   { path: '/staff/customers', access: MANAGER, nav: 'Customer lookup', summary: 'Find a customer or an order.', element: <CustomersPage />, owner: 'Part 4' },

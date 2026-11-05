@@ -99,7 +99,7 @@ function checkAccess(req, roles) {
   const user = getUser(req);
   if (!user) throw new HttpError(401, 'Please sign in.', 'NOT_SIGNED_IN');
   if (roles && !roles.includes(user.role)) {
-    throw new HttpError(403, 'You do not have access to this.', 'FORBIDDEN');
+    throw new HttpError(403, 'Your account does not have permission to do this.', 'FORBIDDEN');
   }
   return user;
 }

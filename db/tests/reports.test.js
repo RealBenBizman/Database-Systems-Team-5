@@ -21,9 +21,9 @@ test('totals add up', async () => {
   expect(res.body.totals.lowOrOut).toBe(res.body.products.filter((p) => p.level !== 'OK').length);
 });
 
-test('support can read it too', async () => {
+test('support is refused (403)', async () => {
   const res = await call(inventory, { role: 'support' });
-  expect(res.statusCode).toBe(200);
+  expect(res.statusCode).toBe(403);
 });
 
 test('no login is refused (401)', async () => {

@@ -5,7 +5,7 @@ const { requireAuth } = require('../../lib/auth');
 
 module.exports = route({
   GET: async (req) => {
-    requireAuth(req, ['support', 'manager']);
+    requireAuth(req, ['manager']);
     const result = await query(`
       SELECT Supplier_id AS supplierId, Supplier_name AS name
       FROM   SUPPLIER

@@ -33,6 +33,7 @@ export default function SignInForm({ kind }) {
 
   return (
     <Card className="auth-card" title={staff ? 'Staff sign in' : 'Sign in'}>
+      {staff && <p className="card-muted">For Customer Support Representatives and Store Managers.</p>}
       <form onSubmit={handleSubmit} noValidate>
         <ErrorBanner error={error} />
         <Field label="Email" type="email" autoComplete="username" value={email}
@@ -48,7 +49,7 @@ export default function SignInForm({ kind }) {
       </p>
       {import.meta.env.DEV && (
         <p className="card-muted">Development hint (not shown on the live site): the seed accounts use the password <code>Password123!</code>
-          {staff ? <> with <code>manager@posstore.test</code> or <code>support1@posstore.test</code>.</> : <> with <code>alice.nguyen@posstore.test</code>.</>}
+          {staff ? <> with <code>manager@posstore.test</code> (Store Manager) or <code>support1@posstore.test</code> (Customer Support Representative).</> : <> with <code>alice.nguyen@posstore.test</code>.</>}
         </p>
       )}
     </Card>

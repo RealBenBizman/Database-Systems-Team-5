@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth, isStaff } from './auth.jsx';
 import { Button } from './ui.jsx';
 import { STORE_NAME } from './config.js';
+import { ROLE_BADGES } from './roles.js';
 
 export default function Layout({ navItems }) {
   const { user, logout } = useAuth();
@@ -29,7 +30,7 @@ export default function Layout({ navItems }) {
           <div className="header-actions">
             {user ? (
               <>
-                <span className="who">Signed in as <strong>{user.name}</strong><span className="role-badge">{user.role}</span></span>
+                <span className="who">Signed in as <strong>{user.name}</strong><span className="role-badge">{ROLE_BADGES[user.role]}</span></span>
                 <Button variant="ghost" onClick={handleLogout}>Sign out</Button>
               </>
             ) : (
