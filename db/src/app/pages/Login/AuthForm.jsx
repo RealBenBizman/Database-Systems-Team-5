@@ -1,12 +1,11 @@
-// Shared by the customer and staff sign-in pages.
+// The one sign-in page. Customers and staff use the same form; the server finds out which kind of account it is.
 import { useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth, isStaff } from '../../../shared/auth.jsx';
 import { Button, Card, ErrorBanner, Field, Spinner } from '../../../shared/ui.jsx';
 
-export default function SignInForm({ kind }) {
-  const staff = kind === 'staff';
-  const { user, loading, loginCustomer, loginStaff } = useAuth();
+export default function SignInForm() {
+  const { user, loading, login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [email, setEmail] = useState('');
@@ -22,7 +21,7 @@ export default function SignInForm({ kind }) {
     setError(null);
     setBusy(true);
     try {
-      const signedIn = await (staff ? loginStaff : loginCustomer)(email, password);
+      const signedIn = await login(email, password);
       const back = location.state && location.state.from;
       navigate(back || (isStaff(signedIn) ? '/staff' : '/'), { replace: true });
     } catch (err) {
@@ -32,8 +31,8 @@ export default function SignInForm({ kind }) {
   }
 
   return (
-    <Card className="auth-card" title={staff ? 'Staff sign in' : 'Sign in'}>
-      {staff && <p className="card-muted">For Customer Support Representatives and Store Managers.</p>}
+    <Card className="auth-card" title="Sign in">
+      <p className="card-muted">Customers and staff sign in here.</p>
       <form onSubmit={handleSubmit} noValidate>
         <ErrorBanner error={error} />
         <Field label="Email" type="email" autoComplete="username" value={email}
@@ -43,14 +42,10 @@ export default function SignInForm({ kind }) {
         <Button type="submit" block loading={busy}>Sign in</Button>
       </form>
       <p className="card-muted" style={{ marginTop: 16 }}>
-        {staff
-          ? <>Not staff? <Link to="/login">Customer sign in</Link></>
-          : <>New here? <Link to="/register">Create an account</Link> &middot; <Link to="/staff/login">Staff sign in</Link></>}
+        New here? <Link to="/register">Create an account</Link>
       </p>
       {import.meta.env.DEV && (
-        <p className="card-muted">Development hint (not shown on the live site): the seed accounts use the password <code>Password123!</code>
-          {staff ? <> with <code>manager@posstore.test</code> (Store Manager) or <code>support1@posstore.test</code> (Customer Support Representative).</> : <> with <code>alice.nguyen@posstore.test</code>.</>}
-        </p>
+        <p className="card-muted">Development hint (not shown on the live site): the seed accounts share one password, which is in the header of <code>seed.sql</code>. Use <code>manager@posstore.test</code> (Store Manager), <code>support1@posstore.test</code> (Customer Support Representative) or <code>alice.nguyen@posstore.test</code> (Customer).</p>
       )}
     </Card>
   );
