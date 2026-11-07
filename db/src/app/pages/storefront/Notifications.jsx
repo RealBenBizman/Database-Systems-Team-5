@@ -26,10 +26,20 @@ export default function Notifications() {
     finally { setBusy(null); }
   }
 
+  async function dismiss(item) {
+    setBusy(`dismiss-${item ? item.id : 'read'}`); setError(null);
+    try {
+      await api.delete(item ? `/api/account/notifications?id=${item.id}` : '/api/account/notifications?read=true');
+      resource.reload();
+    } catch (err) { setError(err); }
+    finally { setBusy(null); }
+  }
+
   return <div className="sf-page sf-notifications-page">
     <PageHeader title="Notifications" subtitle="Your cart reminders and offers, all in one place." />
     <div className="sf-toolbar"><div className="row"><Button variant={unread ? 'secondary' : 'primary'} aria-pressed={!unread} onClick={() => { setUnread(false); setPage(1); }}>All</Button><Button variant={unread ? 'primary' : 'secondary'} aria-pressed={unread} onClick={() => { setUnread(true); setPage(1); }}>Unread{resource.data ? ` (${resource.data.unread})` : ''}</Button></div>
-      <Button variant="secondary" loading={busy === 'all'} disabled={busy !== null || resource.loading || !resource.data?.unread} onClick={() => mark(null)}>Mark all read</Button></div>
+      <div className="row"><Button variant="secondary" loading={busy === 'all'} disabled={busy !== null || resource.loading || !resource.data?.unread} onClick={() => mark(null)}>Mark all read</Button>
+        <Button variant="secondary" loading={busy === 'dismiss-read'} disabled={busy !== null || resource.loading} onClick={() => dismiss(null)}>Clear read</Button></div></div>
     <p className="sf-muted sf-small">Manage your <Link to="/account">notification preferences</Link> in your account.</p>
     <ErrorBanner error={error || resource.error} />
     {resource.loading ? <Spinner label="Loading notifications..." /> : resource.error ? <Button variant="secondary" onClick={resource.reload}>Try again</Button>
@@ -37,7 +47,8 @@ export default function Notifications() {
         <div className="sf-section-top"><h2>{item.type === 'cart reminder' ? 'Your cart is waiting' : 'An offer for you'}</h2><span className="sf-muted sf-small">{date(item.createdAt)}</span></div>
         {!item.readAt && <span className="tag">Unread</span>}<p>{item.message}</p>
         <div className="row"><Button variant="secondary" disabled={busy !== null} onClick={() => mark(item, true)}>{item.type === 'cart reminder' ? 'View cart' : 'Shop offer'}</Button>
-          {!item.readAt && <button className="sf-text-button" type="button" disabled={busy !== null} onClick={() => mark(item)}>Mark read</button>}</div>
+          {!item.readAt && <button className="sf-text-button" type="button" disabled={busy !== null} onClick={() => mark(item)}>Mark read</button>}
+          <button className="sf-text-button" type="button" disabled={busy !== null} onClick={() => dismiss(item)}>Dismiss</button></div>
       </article>)}<Pagination page={page} pageSize={20} total={resource.data.total} change={setPage} /></div>
         : <EmptyState title={unread ? 'You are all caught up' : 'No notifications yet'}>New offers and cart reminders will appear here.</EmptyState>}
   </div>;

@@ -21,10 +21,14 @@ import Register from './pages/Login/Register.jsx';
 import DashboardPage from './pages/backoffices/DashboardPage.jsx';
 import InventoryPage from './pages/backoffices/InventoryPage.jsx';
 import SupplierOrdersPage from './pages/backoffices/SupplierOrderPage.jsx';
+import SuppliersPage from './pages/backoffices/SuppliersPage.jsx';
 import InventoryReportPage from './pages/reports/InventoryReportPage.jsx';
 import ProductsPage from './pages/backoffices/ProductsPage.jsx';
 import CustomersPage from './pages/backoffices/CustomersPage.jsx';
 import SettingsPage from './pages/backoffices/SettingsPage.jsx';
+import DiscountsPage from './pages/backoffices/DiscountsPage.jsx';
+import StaffPage from './pages/backoffices/StaffPage.jsx';
+import ReviewsPage from './pages/backoffices/ReviewsPage.jsx';
 import Catalog from './pages/storefront/Catalog.jsx';
 import ProductDetails from './pages/storefront/ProductDetails.jsx';
 import Cart from './pages/storefront/Cart.jsx';
@@ -81,8 +85,12 @@ export const routes = [
   { path: '/staff/reports/inventory', access: MANAGER, nav: 'Inventory report', summary: 'Stock value and status per product.', element: <InventoryReportPage />, owner: 'Part 4' },
   { path: '/staff/products', access: MANAGER, nav: 'Products', summary: 'Create and edit products, change prices and adjust stock.', element: <ProductsPage />, owner: 'Part 4' },
   { path: '/staff/suppliers', access: MANAGER, nav: 'Supplier orders', summary: 'Order stock from suppliers and receive it.', element: <SupplierOrdersPage />, owner: 'Part 4' },
+  { path: '/staff/supplier-list', access: MANAGER, nav: 'Suppliers', summary: 'Add suppliers, link the products they sell and their lead times.', element: <SuppliersPage />, owner: 'Part 4' },
   { path: '/staff/customers', access: MANAGER, nav: 'Customer lookup', summary: 'Find a customer or an order.', element: <CustomersPage />, owner: 'Part 4' },
-  { path: '/staff/settings', access: MANAGER, nav: 'Settings', summary: 'Categories, tax rates and reward programs.', element: <SettingsPage />, owner: 'Part 4' },
+  { path: '/staff/settings', access: MANAGER, nav: 'Settings', summary: 'Categories, tax rates, reward programs and tiers.', element: <SettingsPage />, owner: 'Part 4' },
+  { path: '/staff/discounts', access: MANAGER, nav: 'Discounts', summary: 'Create sales, link them to products or categories, and group them in sale events.', element: <DiscountsPage />, owner: 'Part 4' },
+  { path: '/staff/team', access: MANAGER, nav: 'Staff', summary: 'Add employees, change roles, and remove people who left.', element: <StaffPage />, owner: 'Part 4' },
+  { path: '/staff/reviews', access: MANAGER, nav: 'Reviews', summary: 'Find customer reviews and remove the ones that do not belong.', element: <ReviewsPage />, owner: 'Part 4' },
 ];
 
 // ---- menus ----

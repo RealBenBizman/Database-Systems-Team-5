@@ -58,6 +58,16 @@ function stateCode(value, label = 'State') {
     return value.trim().toUpperCase();
 }
 
+// Digits only (spaces, dashes, dots and brackets typed by the person are ignored), min to max long
+function digits(value, label, { min, max = min } = {}) {
+    if (typeof value !== 'string' && typeof value !== 'number') fail(`${label} is required.`);
+    const v = String(value).replace(/[\s().-]/g, '');
+    if (!/^\d+$/.test(v) || v.length < min || v.length > max) {
+        fail(min === max ? `${label} must be exactly ${min} digits.` : `${label} must be ${min} to ${max} digits.`);
+    }
+    return v;
+}
+
 function oneOf(value, label, list) {
     if (!list.includes(value)) fail(`${label} must be one of: ${list.join(', ')}.`);
     return value;
@@ -83,4 +93,4 @@ function idFromSearch(value) {
     return /^\d{7}$/.test(v) ? Number(v) : null;
 }
 
-module.exports = { money, decimal, optionalText, isoDate, optionalDate, stateCode, oneOf, bool, likePattern, idFromSearch, integer: validate.integer };
+module.exports = { money, decimal, optionalText, isoDate, optionalDate, stateCode, digits, oneOf, bool, likePattern, idFromSearch, integer: validate.integer };

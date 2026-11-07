@@ -7,7 +7,7 @@ const { hashPassword, setAuthCookie } = require('../../lib/auth');
 const validate = require('../../lib/validate');
 
 //2627 / 2601 = unique index violation. The email is unique even for accounts
-//that were marked for deletion, so those addresses stay taken.
+//that were marked for deletion (closed accounts), so those addresses stay taken.
 const DUPLICATE = [2627, 2601];
 
 module.exports = route({
@@ -31,6 +31,10 @@ module.exports = route({
         }
         catch (err) {
             if (DUPLICATE.includes(err.number)) {
+                const closed = await query('SELECT Customer_id FROM CUSTOMER WHERE Email = @email AND Marked_for_deletion = 1', { email });
+                if (closed.recordset.length > 0) {
+                    throw new HttpError(409, 'This email belongs to a closed account. Please use a different email address.', 'ACCOUNT_CLOSED');
+                }
                 throw new HttpError(409, 'An account with this email already exists.', 'EMAIL_TAKEN');
             }
             throw err;

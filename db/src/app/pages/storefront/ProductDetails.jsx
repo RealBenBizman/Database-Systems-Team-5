@@ -16,8 +16,9 @@ export default function ProductDetails() {
   const [busy, setBusy] = useState('');
   const [notice, setNotice] = useState('');
   const [error, setError] = useState(null);
+  const [removingReview, setRemovingReview] = useState(null);
   useEffect(() => {
-    setQuantity('1'); setPage(1); setForm({ rating: '', comment: '', transactionId: '' }); setNotice(''); setError(null);
+    setQuantity('1'); setPage(1); setForm({ rating: '', comment: '', transactionId: '' }); setNotice(''); setError(null); setRemovingReview(null);
   }, [id]);
   const product = useLoad(() => api.get(`/api/products/${id}`), [id]);
   const reviews = useLoad(() => api.get('/api/reviews', { productId: id, page }), [id, page]);
@@ -35,6 +36,15 @@ export default function ProductDetails() {
     try {
       await api.post('/api/reviews', { productId: Number(id), rating: Number(form.rating), comment: form.comment, transactionId: form.transactionId ? Number(form.transactionId) : null });
       setForm({ rating: '', comment: '', transactionId: '' }); setNotice('Your review was posted.'); setPage(1); reviews.reload(); product.reload();
+    } catch (err) { setError(err); }
+    finally { setBusy(''); }
+  }
+
+  async function removeReview(reviewId) {
+    setBusy('remove-review'); setError(null); setNotice('');
+    try {
+      await api.delete(`/api/reviews?id=${reviewId}`);
+      setRemovingReview(null); setNotice('Your review was deleted.'); setPage(1); reviews.reload(); product.reload();
     } catch (err) { setError(err); }
     finally { setBusy(''); }
   }
@@ -71,6 +81,8 @@ export default function ProductDetails() {
               <p aria-label={`${review.rating} out of 5 stars`} className="sf-review-stars">{'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}</p>
               {review.verified && <span className="tag">Verified purchase</span>}
               {review.comment && <p className="sf-review-comment">{review.comment}</p>}
+              {review.mine && <div className="row"><button className="sf-text-button" type="button" disabled={!!busy} onClick={() => setRemovingReview(review.id)}>Delete my review</button></div>}
+              {review.mine && removingReview === review.id && <div className="sf-confirm" role="group" aria-label="Confirm review deletion"><p>Delete your review? It will no longer show on this product.</p><div className="row"><Button variant="danger" loading={busy === 'remove-review'} disabled={!!busy} onClick={() => removeReview(review.id)}>Confirm deletion</Button><Button variant="secondary" disabled={!!busy} onClick={() => setRemovingReview(null)}>Cancel</Button></div></div>}
             </article>)}<Pagination page={page} pageSize={10} total={reviews.data.total} change={setPage} /></div>
               : <EmptyState title="No reviews yet">Be the first to share your thoughts.</EmptyState>}
         </div>

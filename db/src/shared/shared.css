@@ -116,3 +116,7 @@ table.table { width: 100%; border-collapse: collapse; font-size: var(--font-size
 .hero h1 { font-size: 36px; }
 .hero p { font-size: var(--font-size-lg); color: var(--color-muted); max-width: 640px; }
 .tag { display: inline-block; font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: var(--color-surface-2); color: var(--color-muted); }
+
+/* Confirm step before a removal (ConfirmRemove in ui.jsx) */
+.confirm-remove { margin-top: var(--space-4); padding: var(--space-3); background: var(--color-surface-2); border-radius: var(--radius-sm); }
+.confirm-remove-actions { display: flex; gap: var(--space-2); flex-wrap: wrap; }

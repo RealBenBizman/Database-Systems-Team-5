@@ -1,6 +1,7 @@
 // GET  /api/manager/tax-rates                                   -> list (managers only)
 // POST /api/manager/tax-rates  body: { categoryId, state, rate, effectiveFrom, effectiveTo }  -> create
 // PUT  /api/manager/tax-rates  body: { taxRateId, rate, effectiveFrom, effectiveTo }          -> edit
+// DELETE /api/manager/tax-rates?id=123                                                       -> remove (flag), see the rule below
 // rate is a fraction (0.0825 = 8.25%). There is no trigger that stops two rates for the same
 // category and state from overlapping, so this file checks it, inside the same transaction.
 const { route, HttpError, readBody } = require('../../lib/http');
@@ -8,6 +9,7 @@ const { query, withTransaction } = require('../../lib/db');
 const { requireAuth } = require('../../lib/auth');
 const validate = require('../../lib/validate');
 const f = require('../../lib/fields');
+const { softDelete } = require('../../lib/softDelete');
 
 const LIST_SQL = `
   SELECT t.Tax_rate_id AS taxRateId, t.Category_id AS categoryId, c.Name AS category, t.State AS state,
@@ -96,6 +98,49 @@ module.exports = route({
          WHERE Tax_rate_id = @taxRateId`,
         { taxRateId, rate, from, to });
       return { taxRateId };
+    });
+  },
+
+  // Removing the rate that is in force today leaves checkout without a rate (error 50043) for that
+  // category and state. So it is refused while a visible product of the category exists and no other
+  // rate covers today. A rate that has ended or has not started yet can always be removed.
+  DELETE: async (req) => {
+    requireAuth(req, ['manager']);
+    const taxRateId = validate.integer(req.query && req.query.id, 'Tax rate');
+    return withTransaction(async (tx) => {
+      const found = await tx.query(
+        `SELECT t.Category_id AS categoryId, t.State AS state, c.Name AS category,
+                CASE WHEN t.Effective_from <= CAST(SYSDATETIME() AS DATE)
+                      AND ISNULL(t.Effective_to, CAST('9999-12-31' AS DATE)) >= CAST(SYSDATETIME() AS DATE)
+                     THEN 1 ELSE 0 END AS coversToday
+         FROM   TAX_RATE t WITH (UPDLOCK, HOLDLOCK)
+         JOIN   CATEGORY c ON c.Category_id = t.Category_id
+         WHERE  t.Tax_rate_id = @taxRateId AND t.Marked_for_deletion = 0`,
+        { taxRateId });
+      if (found.recordset.length === 0) throw new HttpError(404, 'Tax rate not found.', 'NOT_FOUND');
+      const { categoryId, state, category, coversToday } = found.recordset[0];
+
+      if (coversToday) {
+        const products = await tx.query(
+          'SELECT TOP (1) Product_id FROM PRODUCT WHERE Category_id = @categoryId AND Marked_for_deletion = 0',
+          { categoryId });
+        if (products.recordset.length > 0) {
+          const other = await tx.query(
+            `SELECT TOP (1) Tax_rate_id FROM TAX_RATE
+             WHERE  Category_id = @categoryId AND State = @state AND Tax_rate_id <> @taxRateId
+               AND  Marked_for_deletion = 0
+               AND  Effective_from <= CAST(SYSDATETIME() AS DATE)
+               AND  ISNULL(Effective_to, CAST('9999-12-31' AS DATE)) >= CAST(SYSDATETIME() AS DATE)`,
+            { categoryId, state, taxRateId });
+          if (other.recordset.length === 0) {
+            throw new HttpError(409,
+              `Checkout would fail for ${category} products shipped to ${state}. Add another rate that covers today first, or end this one instead.`,
+              'IN_USE');
+          }
+        }
+      }
+      await softDelete(tx, 'TAX_RATE', 'Tax_rate_id', taxRateId, 'Tax rate');
+      return { ok: true };
     });
   },
 });
