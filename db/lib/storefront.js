@@ -47,7 +47,11 @@ function productSelect(quantity = '1') {
       THEN 1 ELSE 0 END AS BIT) AS available`;
 }
 
-const PRODUCT_JOINS = (quantity = '1') => `JOIN CATEGORY c ON c.Category_id = p.Category_id
+// customerId is a SQL expression such as 'v.Customer_id'. When it is given, that customer's tier
+// reward (VW_TIER_REWARD, db/loyalty/tier_reward_view.sql) becomes a third discount candidate next to the
+// product and category discounts. Only the cart passes it; the catalog and product pages never do.
+const PRODUCT_JOINS = (quantity = '1', customerId = null) => `JOIN CATEGORY c ON c.Category_id = p.Category_id${customerId ? `
+  OUTER APPLY (SELECT TOP (1) rw.Discount_id FROM VW_TIER_REWARD rw WHERE rw.Customer_id = ${customerId}) reward` : ''}
   OUTER APPLY (
     SELECT TOP (1) d.Discount_id, d.Discount_name,
       CASE WHEN saving.rawSaving > p.Sell_price * ${quantity}
@@ -55,7 +59,7 @@ const PRODUCT_JOINS = (quantity = '1') => `JOIN CATEGORY c ON c.Category_id = p.
     FROM DISCOUNT d
     CROSS APPLY (SELECT ROUND(CASE WHEN d.Amount_type = 'percent'
       THEN p.Sell_price * ${quantity} * d.Amount / 100.0 ELSE d.Amount END, 2) AS rawSaving) saving
-    WHERE (d.Discount_id = p.Discount_id OR d.Discount_id = c.Discount_id)
+    WHERE (d.Discount_id = p.Discount_id OR d.Discount_id = c.Discount_id${customerId ? ' OR d.Discount_id = reward.Discount_id' : ''})
       AND d.Marked_for_deletion = 0 AND d.Is_active = 1
       AND CAST(SYSDATETIME() AS DATE) BETWEEN d.Start_date AND d.End_date
     ORDER BY saving DESC, d.Discount_id
@@ -77,14 +81,50 @@ function cartResult(rows) {
   };
 }
 
+// A tier reward saves at most $500 on one order. The cap is counted line by line in product order
+// (lowest product id first), exactly as sp_Checkout does it and as TR_TRANSACTION_ITEM_RewardGuard
+// enforces it, so the cart total is the charged total. A line that is left with no saving loses
+// the reward label.
+const REWARD_CAP = 500;
+
+function applyRewardCap(rows) {
+  const cents = (value) => Math.round(Number(value) * 100);
+  let before = 0; // raw reward savings of the lines already counted
+  let changed = false;
+  [...rows].sort((a, b) => a.id - b.id).forEach((row) => {
+    if (!row.isReward) return;
+    const saving = cents(row.discountAmount);
+    const allowed = Math.max(0, Math.min(saving, REWARD_CAP * 100 - before));
+    before += saving;
+    if (allowed === saving) return;
+    changed = true;
+    const base = cents(row.baseTotal);
+    row.discountAmount = allowed / 100;
+    row.lineTotal = (base - allowed) / 100;
+    row.effectivePrice = Math.round((base - allowed) / Number(row.quantity)) / 100;
+    if (allowed === 0) {
+      row.discountId = null;
+      row.discountName = null;
+      row.isReward = false;
+    }
+  });
+  if (changed) {
+    const subtotal = rows.reduce((sum, row) => sum + cents(row.lineTotal), 0) / 100;
+    rows.forEach((row) => { row.cartSubtotal = subtotal; });
+  }
+  return rows;
+}
+
 async function readCart(customerId) {
   const result = await db.query(`WITH items AS (
-    ${productSelect('v.Quantity')} FROM VW_CART v
-    JOIN PRODUCT p ON p.Product_id = v.Product_id ${PRODUCT_JOINS('v.Quantity')}
+    ${productSelect('v.Quantity')},
+    CAST(CASE WHEN reward.Discount_id IS NOT NULL AND offer.Discount_id = reward.Discount_id THEN 1 ELSE 0 END AS BIT) AS isReward
+    FROM VW_CART v
+    JOIN PRODUCT p ON p.Product_id = v.Product_id ${PRODUCT_JOINS('v.Quantity', 'v.Customer_id')}
     WHERE v.Customer_id = @customerId
   ) SELECT *, SUM(lineTotal) OVER () AS cartSubtotal, SUM(CAST(quantity AS BIGINT)) OVER () AS cartQuantity
     FROM items ORDER BY name, id`, { customerId });
-  return cartResult(result.recordset);
+  return cartResult(applyRewardCap(result.recordset));
 }
 
 function cartItems(value) {
@@ -157,4 +197,4 @@ function phone(value) {
 }
 
 module.exports = { id, keys, boolean, customer, lockCustomer, productSelect, PRODUCT_JOINS, PUBLIC_PRODUCT,
-  readCart, cartItems, cartResult, saveCartItem, removeCartItem, ADDRESS_COLUMNS, address, phone };
+  readCart, applyRewardCap, REWARD_CAP, cartItems, cartResult, saveCartItem, removeCartItem, ADDRESS_COLUMNS, address, phone };

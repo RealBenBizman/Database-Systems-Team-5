@@ -252,6 +252,10 @@ BEGIN TRY
            (6, 'GAME-STAR-PS5',   1), (6, 'ACC-HEAD-WL',     1), (6, 'GIFT-50', 1),
            (7, 'CONS-ARC-1TB',    1), (7, 'GAME-EMBR-SW',    2), (7, 'ACC-CTRL-BLK', 2),
            (8, 'CONS-HAND-REF',   3);
+    
+    -- The tier reward trigger must not fire for the history we replay here
+    IF OBJECT_ID('TR_CUSTOMER_TierReward', 'TR') IS NOT NULL
+        DISABLE TRIGGER TR_CUSTOMER_TierReward ON CUSTOMER;
 
     DECLARE sale_cur CURSOR LOCAL FAST_FORWARD FOR
         SELECT Sale_key, Email, Days_ago, Method, Card_last4
@@ -348,6 +352,9 @@ BEGIN TRY
 
     CLOSE sale_cur;
     DEALLOCATE sale_cur;
+
+    IF OBJECT_ID('TR_CUSTOMER_TierReward', 'TR') IS NOT NULL
+        ENABLE TRIGGER TR_CUSTOMER_TierReward ON CUSTOMER;
 
     -- Carts (no cart header table; one row per product)
     --   Emma : idle 3 days, reminders on  -> candidate for a cart reminder
