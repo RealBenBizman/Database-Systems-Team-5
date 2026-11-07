@@ -6,6 +6,7 @@
    Every screen should show: <Spinner/> while loading, <EmptyState/> when there
    is nothing to show, and <ErrorBanner/> when a call fails.
 */
+import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 
 export function Button({ variant = 'primary', loading = false, block = false, disabled, children, to, className = '', ...rest }) {
@@ -111,6 +112,40 @@ export function Table({ columns, rows, rowKey = 'id', empty = 'No rows to show.'
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+/*
+   The confirm step before removing something. Show it next to the thing being removed:
+
+     {removing === item.id && (
+       <ConfirmRemove
+         label="Remove this product?"
+         message="It will disappear from the shop and the inventory list."
+         busy={busy}
+         onConfirm={() => remove(item.id)}
+         onCancel={() => setRemoving(null)} />
+     )}
+
+   Escape cancels. While busy is true both buttons are disabled, so a double click
+   cannot send two requests. The server does the real work (lib/softDelete.js).
+*/
+export function ConfirmRemove({ label = 'Remove this item?', message, confirmText = 'Confirm removal', onConfirm, onCancel, busy = false }) {
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape' && !busy && onCancel) onCancel(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [busy, onCancel]);
+
+  return (
+    <div className="confirm-remove" role="group" aria-label="Confirm removal">
+      <p><strong>{label}</strong></p>
+      {message && <p className="card-muted">{message}</p>}
+      <div className="confirm-remove-actions">
+        <Button variant="danger" loading={busy} onClick={onConfirm}>{confirmText}</Button>
+        <Button variant="secondary" disabled={busy} onClick={onCancel}>Cancel</Button>
+      </div>
     </div>
   );
 }

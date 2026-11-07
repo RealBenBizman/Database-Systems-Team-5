@@ -1,15 +1,18 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../../../shared/api.js';
 import { useAuth } from '../../../shared/auth.jsx';
 import { Banner, Button, Card, EmptyState, ErrorBanner, Field, PageHeader, Spinner } from '../../../shared/ui.jsx';
 import { date, useLoad } from './components.jsx';
 import './Storefront.css';
 
-const SECTIONS = ['Profile', 'Addresses', 'Phone numbers', 'Preferences'];
+const SECTIONS = ['Profile', 'Addresses', 'Phone numbers', 'Preferences', 'Close account'];
 
 export default function Account() {
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, logout } = useAuth();
+  const navigate = useNavigate();
+  const [closePassword, setClosePassword] = useState('');
+  const [confirmClose, setConfirmClose] = useState(false);
   const resource = useLoad(() => api.get('/api/account'), [user?.id]);
   const [section, setSection] = useState('Profile');
   const [profile, setProfile] = useState(null);
@@ -26,6 +29,16 @@ export default function Account() {
     try { await operation(); setNotice(message); resource.reload(); }
     catch (err) { setError(err); }
     finally { setBusy(''); }
+  }
+
+  async function closeAccount(event) {
+    event.preventDefault();
+    setBusy('close'); setError(null); setNotice('');
+    try {
+      await api.post('/api/account/close', { password: closePassword });
+      await logout();
+      navigate('/', { replace: true });
+    } catch (err) { setError(err); setBusy(''); }
   }
 
   function newAddress() {
@@ -102,6 +115,15 @@ export default function Account() {
           <label className="sf-check"><input type="checkbox" checked={!!profile.notifyOffers} onChange={(event) => setProfile({ ...profile, notifyOffers: event.target.checked })} /> Let me know about offers</label>
           <Button type="submit" loading={busy === 'preferences'} disabled={!!busy}>Save preferences</Button>
         </form></Card>}
+        {section === 'Close account' && <Card title="Close my account">
+          <p>Closing your account signs you out and you will not be able to sign in again. Your cart is emptied. Your past orders and returns are kept by the store for its records, and your email address cannot be used to register again.</p>
+          <p className="sf-muted">If you have a return that is still open, it has to be finished first.</p>
+          {!confirmClose ? <Button variant="danger" disabled={!!busy} onClick={() => { setConfirmClose(true); setError(null); }}>Close my account</Button>
+            : <form className="sf-confirm" onSubmit={closeAccount} aria-label="Confirm closing my account">
+              <Field label="Enter your password to confirm" type="password" required autoComplete="current-password" value={closePassword} onChange={(event) => setClosePassword(event.target.value)} />
+              <div className="row"><Button type="submit" variant="danger" loading={busy === 'close'} disabled={!!busy}>Yes, close my account</Button><Button type="button" variant="secondary" disabled={!!busy} onClick={() => { setConfirmClose(false); setClosePassword(''); setError(null); }}>Keep my account</Button></div>
+            </form>}
+        </Card>}
       </div>
     </div>
   </div>;

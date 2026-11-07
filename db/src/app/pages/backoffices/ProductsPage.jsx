@@ -3,7 +3,7 @@
 // /api/manager/adjustments (a trigger applies it), so the edit form changes neither.
 import { useEffect, useState } from 'react';
 import { api } from '../../../shared/api.js';
-import { Banner, Button, Card, ErrorBanner, Field, PageHeader, Spinner, Table } from '../../../shared/ui.jsx';
+import { Banner, Button, Card, ConfirmRemove, ErrorBanner, Field, PageHeader, Spinner, Table } from '../../../shared/ui.jsx';
 
 const CONDITIONS = ['New', 'Used', 'Refurbished'];
 const money = (n) => '$' + Number(n || 0).toFixed(2);
@@ -149,6 +149,35 @@ function StockForm({ product, onSaved, onCancel }) {
   );
 }
 
+function RemovePanel({ product, onRemoved, onCancel }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  async function remove() {
+    setError('');
+    setBusy(true);
+    try {
+      await api.delete('/api/manager/product-catalog?id=' + product.productId);
+      onRemoved('Removed ' + product.name + '.');
+    } catch (err) {
+      setError(err.message);
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card title={'Remove ' + product.name}>
+      <ErrorBanner>{error}</ErrorBanner>
+      <ConfirmRemove
+        label={'Remove ' + product.name + '?'}
+        message="It disappears from the shop, the inventory list and the carts. A product that was ever sold cannot be removed: deactivate it instead (Edit, then untick Active)."
+        busy={busy}
+        onConfirm={remove}
+        onCancel={onCancel} />
+    </Card>
+  );
+}
+
 export default function ProductsPage() {
   const [products, setProducts] = useState(null);   // null = still loading
   const [categories, setCategories] = useState([]);
@@ -197,6 +226,7 @@ export default function ProductsPage() {
           <Button type="button" variant="secondary" onClick={() => open('edit', p)}>Edit</Button>
           <Button type="button" variant="secondary" onClick={() => open('price', p)}>Price</Button>
           <Button type="button" variant="secondary" onClick={() => open('stock', p)}>Stock</Button>
+          <Button type="button" variant="secondary" onClick={() => open('remove', p)}>Remove</Button>
         </div>
       ),
     },
@@ -226,6 +256,7 @@ export default function ProductsPage() {
         {panel && panel.kind === 'edit' && <ProductForm key={panel.product.productId} product={panel.product} categories={categories} onSaved={saved} onCancel={() => setPanel(null)} />}
         {panel && panel.kind === 'price' && <PriceForm key={panel.product.productId} product={panel.product} onSaved={saved} onCancel={() => setPanel(null)} />}
         {panel && panel.kind === 'stock' && <StockForm key={panel.product.productId} product={panel.product} onSaved={saved} onCancel={() => setPanel(null)} />}
+        {panel && panel.kind === 'remove' && <RemovePanel key={panel.product.productId} product={panel.product} onRemoved={saved} onCancel={() => setPanel(null)} />}
         </div>
       )}
 

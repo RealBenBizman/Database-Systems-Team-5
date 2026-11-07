@@ -3,6 +3,7 @@
 //                                            costPrice, sellPrice, stock, threshold }   -> create
 // PUT  /api/manager/product-catalog  body: { productId, name, description, categoryId, productCondition,
 //                                            costPrice, threshold, isActive }            -> edit
+// DELETE /api/manager/product-catalog?id=123  -> remove (flag) a product that was never sold
 // Price changes go through /api/manager/prices (it writes the PRICE_CHANGE row) and stock changes
 // through /api/manager/adjustments (the trigger applies them), so neither is editable here.
 const { route, HttpError, readBody } = require('../../lib/http');
@@ -10,6 +11,7 @@ const { query, withTransaction } = require('../../lib/db');
 const { requireAuth } = require('../../lib/auth');
 const validate = require('../../lib/validate');
 const f = require('../../lib/fields');
+const { softDelete } = require('../../lib/softDelete');
 
 const CONDITIONS = ['New', 'Used', 'Refurbished'];
 
@@ -93,6 +95,40 @@ module.exports = route({
         { productId, name, description, categoryId, productCondition, costPrice, threshold, isActive });
       if (changed.rowsAffected[0] === 0) throw new HttpError(404, 'Product not found.');
       return { productId };
+    });
+  },
+
+  DELETE: async (req) => {
+    requireAuth(req, ['manager']);
+    const productId = validate.integer(req.query && req.query.id, 'Product');
+    return withTransaction(async (tx) => {
+      const product = await tx.query(
+        'SELECT Product_id FROM PRODUCT WITH (UPDLOCK, HOLDLOCK) WHERE Product_id = @productId AND Marked_for_deletion = 0',
+        { productId });
+      if (product.recordset.length === 0) throw new HttpError(404, 'Product not found.', 'NOT_FOUND');
+      // any sale line counts as history, whatever the sale status and even if the line is flagged
+      const sold = await tx.query(
+        'SELECT TOP (1) Product_id FROM TRANSACTION_ITEM WITH (UPDLOCK, HOLDLOCK) WHERE Product_id = @productId',
+        { productId });
+      if (sold.recordset.length > 0) {
+        throw new HttpError(409, 'This product has sales history. Deactivate it instead.', 'HAS_HISTORY');
+      }
+      const ordered = await tx.query(
+        `SELECT TOP (1) i.Product_id
+         FROM   SUPPLIER_ORDER_ITEM i
+         JOIN   SUPPLIER_ORDER o ON o.Order_id = i.Order_id
+         WHERE  i.Product_id = @productId AND o.Status IN ('Pending', 'Ordered')
+           AND  o.Marked_for_deletion = 0 AND i.Marked_for_deletion = 0`,
+        { productId });
+      if (ordered.recordset.length > 0) {
+        throw new HttpError(409, 'This product is on a supplier order that is still open. Cancel or receive that order first.', 'ON_ORDER');
+      }
+      // the alerts screen and the dashboard do not filter removed products, so close the open alerts
+      await tx.query(
+        'UPDATE LOW_STOCK_ALERT SET Resolved_at = SYSDATETIME() WHERE Product_id = @productId AND Resolved_at IS NULL AND Marked_for_deletion = 0',
+        { productId });
+      await softDelete(tx, 'PRODUCT', 'Product_id', productId, 'Product');
+      return { ok: true };
     });
   },
 });

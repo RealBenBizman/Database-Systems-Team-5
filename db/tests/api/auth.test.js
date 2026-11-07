@@ -169,10 +169,24 @@ describe('POST /api/auth/register', () => {
   });
 
   test('a taken email is 409', async () => {
-    query.mockRejectedValue(Object.assign(new Error('Violation of UNIQUE KEY'), { number: 2627 }));
+    query
+      .mockRejectedValueOnce(Object.assign(new Error('Violation of UNIQUE KEY'), { number: 2627 }))
+      .mockResolvedValueOnce({ recordset: [] });   // no closed account has this email
     const res = await post(register, good);
     expect(res.statusCode).toBe(409);
     expect(res.json.code).toBe('EMAIL_TAKEN');
+    expect(res.headers['set-cookie']).toBeUndefined();
+  });
+
+  test('an email that belongs to a closed account says so', async () => {
+    query
+      .mockRejectedValueOnce(Object.assign(new Error('Violation of UNIQUE KEY'), { number: 2627 }))
+      .mockResolvedValueOnce({ recordset: [{ Customer_id: 1000004 }] });
+    const res = await post(register, good);
+    expect(res.statusCode).toBe(409);
+    expect(res.json.code).toBe('ACCOUNT_CLOSED');
+    expect(res.json.error).toMatch(/closed account/);
+    expect(query.mock.calls[1][0]).toMatch(/Marked_for_deletion = 1/);
     expect(res.headers['set-cookie']).toBeUndefined();
   });
 

@@ -31,4 +31,21 @@ module.exports = route({
     }
     return { ok: true };
   },
+  // DELETE /api/account/notifications?id=123   -> dismiss one notification
+  // DELETE /api/account/notifications?read=true -> clear every notification that was already read
+  // Dismissed notifications are flagged, not deleted.
+  DELETE: async (req) => {
+    const user = await customer(req);
+    const q = req.query || {};
+    if (q.read === 'true') {
+      if (q.id !== undefined) throw new HttpError(400, 'Choose one notification or all read notifications.');
+      const result = await query(`UPDATE NOTIFICATION SET Marked_for_deletion = 1
+        WHERE Customer_id = @customerId AND Marked_for_deletion = 0 AND Read_at IS NOT NULL`, { customerId: user.id });
+      return { ok: true, removed: result.rowsAffected[0] };
+    }
+    const result = await query(`UPDATE NOTIFICATION SET Marked_for_deletion = 1
+      WHERE Notification_id = @id AND Customer_id = @customerId AND Marked_for_deletion = 0`, { id: id(q.id, 'Notification'), customerId: user.id });
+    if (!result.rowsAffected[0]) throw new HttpError(404, 'Notification not found.');
+    return { ok: true };
+  },
 });

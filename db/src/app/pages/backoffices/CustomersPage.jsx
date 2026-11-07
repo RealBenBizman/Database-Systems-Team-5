@@ -1,8 +1,10 @@
-// Customer lookup (managers, read only): find a customer or an order and see the details.
-// Nothing here can change data. Password hashes are never sent by the server.
+// Customer lookup (managers): find a customer or an order and see the details.
+// The only change possible here is to deactivate a customer (the account is flagged, nothing is deleted).
+// Password hashes are never sent by the server.
 import { useEffect, useState } from 'react';
 import { api } from '../../../shared/api.js';
-import { Button, Card, ErrorBanner, PageHeader, Spinner, Table } from '../../../shared/ui.jsx';
+import { RemoveCard } from '../../../shared/manage.jsx';
+import { Banner, Button, Card, ErrorBanner, PageHeader, Spinner, Table } from '../../../shared/ui.jsx';
 
 const money = (n) => '$' + Number(n || 0).toFixed(2);
 
@@ -74,7 +76,8 @@ function Loaded({ url, children }) {
   return children(data);
 }
 
-function CustomerDetail({ id, onOpen }) {
+function CustomerDetail({ id, onOpen, onDeactivated }) {
+  const [removing, setRemoving] = useState(false);
   return (
     <Loaded url={'/api/manager/customers/' + id}>
       {({ customer: c, addresses, phones, pointsHistory, orders }) => (
@@ -86,7 +89,18 @@ function CustomerDetail({ id, onOpen }) {
               {' '}offers {c.notifyOffers ? 'on' : 'off'}, cart reminders {c.notifyCart ? 'on' : 'off'}
             </p>
             <p className="card-muted">Phones: {phones.length ? phones.join(', ') : 'none'}</p>
+            {!removing && <Button type="button" variant="secondary" onClick={() => setRemoving(true)}>Deactivate customer</Button>}
           </Card>
+          {removing && (
+            <RemoveCard
+              title={'Deactivate ' + c.firstName + ' ' + c.lastName}
+              label={'Deactivate ' + c.firstName + ' ' + c.lastName + '?'}
+              message="They will not be able to sign in again and their cart is emptied. Their orders, returns and points stay for the records. A customer with an open return cannot be deactivated."
+              url={'/api/manager/customers/' + c.customerId}
+              done={c.firstName + ' ' + c.lastName + ' was deactivated.'}
+              onRemoved={onDeactivated}
+              onCancel={() => setRemoving(false)} />
+          )}
 
           <h3>Addresses</h3>
           <Table
@@ -179,26 +193,29 @@ function OrderDetail({ id, onOpen }) {
 export default function CustomersPage() {
   const [tab, setTab] = useState('customers');   // 'customers' | 'orders'
   const [detail, setDetail] = useState(null);    // { kind: 'customer' | 'order', id }
+  const [notice, setNotice] = useState('');
 
   function open(kind, id) {
     setTab(kind === 'customer' ? 'customers' : 'orders');
     setDetail({ kind, id });
+    setNotice('');
     window.scrollTo({ top: 0 });
   }
 
   return (
     <>
-      <PageHeader title="Customer lookup" subtitle="Find a customer or an order. Read only." />
+      <PageHeader title="Customer lookup" subtitle="Find a customer or an order." />
+      {notice && <Banner kind="success">{notice}</Banner>}
       <div className="row" style={{ marginBottom: 16 }}>
-        <Button type="button" variant={tab === 'customers' ? 'primary' : 'secondary'} onClick={() => { setTab('customers'); setDetail(null); }}>Customers</Button>
-        <Button type="button" variant={tab === 'orders' ? 'primary' : 'secondary'} onClick={() => { setTab('orders'); setDetail(null); }}>Orders</Button>
+        <Button type="button" variant={tab === 'customers' ? 'primary' : 'secondary'} onClick={() => { setTab('customers'); setDetail(null); setNotice(''); }}>Customers</Button>
+        <Button type="button" variant={tab === 'orders' ? 'primary' : 'secondary'} onClick={() => { setTab('orders'); setDetail(null); setNotice(''); }}>Orders</Button>
       </div>
 
       {detail ? (
         <>
           <p><Button type="button" variant="secondary" onClick={() => setDetail(null)}>Back to search</Button></p>
           {detail.kind === 'customer'
-            ? <CustomerDetail id={detail.id} onOpen={open} />
+            ? <CustomerDetail id={detail.id} onOpen={open} onDeactivated={(m) => { setNotice(m); setDetail(null); }} />
             : <OrderDetail id={detail.id} onOpen={open} />}
         </>
       ) : (

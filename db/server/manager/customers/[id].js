@@ -1,9 +1,11 @@
-// GET /api/manager/customers/<id> -> one customer: profile, addresses, phones, points history and orders
-// Managers only, read only. Never returns the password hash.
+// GET    /api/manager/customers/<id> -> one customer: profile, addresses, phones, points history and orders
+// DELETE /api/manager/customers/<id> -> deactivate the customer (the account is flagged, nothing is deleted)
+// Managers only. Never returns the password hash. Deactivating is refused while a return is still open.
 const { route, HttpError } = require('../../../lib/http');
-const { query } = require('../../../lib/db');
+const { query, withTransaction } = require('../../../lib/db');
 const { requireAuth } = require('../../../lib/auth');
 const validate = require('../../../lib/validate');
+const { closeCustomer } = require('../../../lib/closeAccount');
 
 const PROFILE_SQL = `
   SELECT c.Customer_id AS customerId, c.First_name AS firstName, c.Last_name AS lastName,
@@ -62,5 +64,12 @@ module.exports = route({
       pointsHistory: points.recordset,
       orders: orders.recordset,
     };
+  },
+
+  DELETE: async (req) => {
+    requireAuth(req, ['manager']);
+    const id = validate.integer(req.query && req.query.id, 'Customer', { min: 1000000, max: 9999999 });
+    await withTransaction((tx) => closeCustomer(tx, id));
+    return { ok: true };
   },
 });
