@@ -5,8 +5,9 @@
     lock, the savepoint, the stock and item checks (50041, 50044-50046), and the rule that a
     FIXED discount is taken once per line.
 
-    Run AFTER schema.sql, triggers.sql and views.sql. It can be run again at any
-    time (CREATE OR ALTER). Call it from the API, never from the browser:
+    Run AFTER schema.sql, triggers.sql, views.sql and db/loyalty/tier_reward_view.sql (it reads
+    VW_TIER_REWARD). It can be run again at any time (CREATE OR ALTER). Call it from the API,
+    never from the browser:
 
         EXEC sp_Checkout @Customer_id = 1000001, @Method = 'credit', @Card_last4 = '4242';
 
@@ -18,7 +19,9 @@
       2. check the cart, the payment details and the default address
       3. insert the sale as 'open' with the ship-to copied from the address
       4. copy each cart row to TRANSACTION_ITEM with its price and the single
-         largest discount (product or category) that is active today
+         largest discount (product, category or the customer's tier reward)
+         that is active today; if a line used the tier reward, the reward is
+         used up
       5. empty the cart, work out Subtotal, Tax_amount and Total
       6. insert one PAYMENT for the full Total
       7. update the sale to 'completed' (tracking number, arrival in 5 days).
@@ -31,6 +34,11 @@
         the cart screen (lib/storefront.js), so the cart total and the charged
         total are always the same. A discount never goes below $0 for the line.
       - Ties between the product and the category discount go to the lower Discount_id.
+      - The tier reward (15% after reaching a new tier, see db/loyalty/tier_reward_triggers.sql) is a
+        third candidate for each line. Discounts never stack: the line takes the largest saving.
+        The reward saves at most $500 on the whole order, counted line by line in Product_id
+        order (the cart screen does the same). A line left with no saving gets no discount.
+        The reward is used up (Is_active = 0) only if at least one line really took it.
       - Tax is rounded per line (after the discount), then added up. A missing
         tax rate stops the checkout; it is never treated as 0%. (A 0% rate must
         exist as a row, as it does for gift cards.)
@@ -62,6 +70,7 @@ BEGIN
     DECLARE @Own BIT = CASE WHEN @@TRANCOUNT = 0 THEN 1 ELSE 0 END;
     DECLARE @Today DATE = CAST(SYSDATETIME() AS DATE);
     DECLARE @Tid INT, @Subtotal DECIMAL(10,2), @Tax DECIMAL(10,2), @Msg NVARCHAR(200), @Item NVARCHAR(100);
+    DECLARE @RewardId INT, @RewardCap DECIMAL(10,2) = 500.00;   -- same cap as TR_TRANSACTION_ITEM_RewardGuard and lib/storefront.js
     DECLARE @Name NVARCHAR(100), @Street NVARCHAR(100), @Apt VARCHAR(10),
             @City NVARCHAR(50), @State CHAR(2), @Zip VARCHAR(10);
 
@@ -125,26 +134,53 @@ BEGIN
         VALUES (@Customer_id, @Name, @Street, @Apt, @City, @State, @Zip);
         SET @Tid = SCOPE_IDENTITY();
 
-        -- 4) cart rows -> sale items (price snapshot + the single largest discount)
+        -- 4) cart rows -> sale items (price snapshot + the single largest discount).
+        --    The customer's tier reward (if any) competes with the product and category discount.
+        --    Its saving is capped at $500 for the order, line by line in Product_id order.
+        SET @RewardId = (SELECT TOP (1) Discount_id FROM VW_TIER_REWARD WHERE Customer_id = @Customer_id);
+
+        WITH pick AS (
+            SELECT v.Product_id, v.Quantity, v.Sell_price,
+                   best.Discount_id, ISNULL(best.Saving, 0) AS Saving,
+                   CASE WHEN best.Discount_id = @RewardId THEN 1 ELSE 0 END AS Is_reward
+            FROM VW_CART v
+            JOIN PRODUCT  p ON p.Product_id  = v.Product_id
+            JOIN CATEGORY c ON c.Category_id = p.Category_id
+            OUTER APPLY (
+                SELECT TOP (1) d.Discount_id,
+                       CASE WHEN s.Raw > v.Line_total THEN v.Line_total ELSE s.Raw END AS Saving
+                FROM DISCOUNT d
+                CROSS APPLY (SELECT ROUND(CASE WHEN d.Amount_type = 'percent'
+                                               THEN v.Line_total * d.Amount / 100.0
+                                               ELSE d.Amount END, 2) AS Raw) s
+                WHERE d.Discount_id IN (p.Discount_id, c.Discount_id, @RewardId)
+                  AND d.Is_active = 1 AND d.Marked_for_deletion = 0
+                  AND @Today BETWEEN d.Start_date AND d.End_date
+                ORDER BY CASE WHEN s.Raw > v.Line_total THEN v.Line_total ELSE s.Raw END DESC, d.Discount_id
+            ) best
+            WHERE v.Customer_id = @Customer_id
+        ),
+        counted AS (
+            SELECT pick.*,
+                   ISNULL(SUM(CASE WHEN Is_reward = 1 THEN Saving ELSE 0 END)
+                          OVER (ORDER BY Product_id ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING), 0) AS Reward_before
+            FROM pick
+        )
         INSERT INTO TRANSACTION_ITEM
             (Transaction_id, Product_id, Quantity, Unit_price, Discount_id, Discount_amount)
-        SELECT @Tid, v.Product_id, v.Quantity, v.Sell_price, best.Discount_id, ISNULL(best.Saving, 0)
-        FROM VW_CART v
-        JOIN PRODUCT  p ON p.Product_id  = v.Product_id
-        JOIN CATEGORY c ON c.Category_id = p.Category_id
-        OUTER APPLY (
-            SELECT TOP (1) d.Discount_id,
-                   CASE WHEN s.Raw > v.Line_total THEN v.Line_total ELSE s.Raw END AS Saving
-            FROM DISCOUNT d
-            CROSS APPLY (SELECT ROUND(CASE WHEN d.Amount_type = 'percent'
-                                           THEN v.Line_total * d.Amount / 100.0
-                                           ELSE d.Amount END, 2) AS Raw) s
-            WHERE d.Discount_id IN (p.Discount_id, c.Discount_id)
-              AND d.Is_active = 1 AND d.Marked_for_deletion = 0
-              AND @Today BETWEEN d.Start_date AND d.End_date
-            ORDER BY CASE WHEN s.Raw > v.Line_total THEN v.Line_total ELSE s.Raw END DESC, d.Discount_id
-        ) best
-        WHERE v.Customer_id = @Customer_id;
+        SELECT @Tid, c.Product_id, c.Quantity, c.Sell_price,
+               CASE WHEN c.Is_reward = 1 AND k.Saving = 0 THEN NULL ELSE c.Discount_id END,
+               k.Saving
+        FROM counted c
+        CROSS APPLY (SELECT CASE WHEN c.Is_reward = 0 THEN c.Saving
+                                 WHEN @RewardCap - c.Reward_before <= 0 THEN CAST(0 AS DECIMAL(10,2))
+                                 WHEN c.Saving < @RewardCap - c.Reward_before THEN c.Saving
+                                 ELSE @RewardCap - c.Reward_before END AS Saving) k;
+
+        -- the reward is used up only if a line really took it
+        IF @RewardId IS NOT NULL
+           AND EXISTS (SELECT 1 FROM TRANSACTION_ITEM WHERE Transaction_id = @Tid AND Discount_id = @RewardId)
+            UPDATE DISCOUNT SET Is_active = 0 WHERE Discount_id = @RewardId;
 
         -- 5) empty the cart; every line needs a tax rate for the ship-to state
         DELETE FROM CART_ITEM WHERE Customer_id = @Customer_id;

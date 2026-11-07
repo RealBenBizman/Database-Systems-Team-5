@@ -4,7 +4,7 @@
    Run it after schema.sql, triggers.sql and views.sql (before or after seed.sql).
    It does not change anything. Result sets, in order:
      1) a PASS/FAIL grid of structure counts
-     2) the status of every trigger the project plans to have (13 in total)
+     2) the status of every trigger the project plans to have (15 in total)
      3) triggers found in the database that are not on that list (should be empty)
      4) the list of table names
 
@@ -17,16 +17,14 @@
    every foreign key is ON DELETE NO ACTION / ON UPDATE NO ACTION (no SET NULL,
    no CASCADE). The grid checks both.
 
-   @expected_triggers is 13: the 5 first triggers, TR_SALES_TRANSACTION_StatusFlow and the
-   7 guard triggers. If you run this before the guard triggers are added, the
-   trigger-count row and the 7 'missing' trigger rows will show FAIL.
+   @expected_triggers is 15
 */
 USE pos_store;
 GO
 
 SET NOCOUNT ON;
 
-DECLARE @expected_triggers INT = 13;
+DECLARE @expected_triggers INT = 15;
 
 DECLARE @tables  TABLE (Table_name SYSNAME PRIMARY KEY);
 DECLARE @planned TABLE (Trigger_name SYSNAME PRIMARY KEY, Planned_in NVARCHAR(40));
@@ -53,7 +51,9 @@ VALUES ('TR_SALES_TRANSACTION_Complete',      'Built: trigger 1'),
        ('TR_SALES_TRANSACTION_PaymentCheck',  'Part 2'),
        ('TR_PRODUCT_RETURN_ITEM_Guard',       'Part 3'),
        ('TR_PRODUCT_RETURN_Refunded',         'Part 3'),
-       ('TR_INVENTORY_ADJUSTMENT_Apply',      'Part 4');
+       ('TR_INVENTORY_ADJUSTMENT_Apply',      'Part 4'),
+       ('TR_CUSTOMER_TierReward',             'Loyalty reward'),
+       ('TR_TRANSACTION_ITEM_RewardGuard',    'Loyalty reward');
 
 INSERT INTO @r (Item, Expected, Actual)
 VALUES (N'Tables', '27',
@@ -64,7 +64,7 @@ VALUES (N'Tables', '27',
        (N'Tables that are not on the expected list', '0',
         (SELECT CAST(COUNT(*) AS NVARCHAR(40)) FROM sys.tables t
          WHERE NOT EXISTS (SELECT 1 FROM @tables x WHERE x.Table_name = t.name))),
-       (N'Views (VW_CART + 4 report views)', '5',
+       (N'Views (VW_CART, VW_TIER_REWARD + 4 report views)', '6',
         (SELECT CAST(COUNT(*) AS NVARCHAR(40)) FROM sys.views WHERE is_ms_shipped = 0)),
        (N'Report views missing (run views.sql if not 0)', '0',
         (SELECT CAST(COUNT(*) AS NVARCHAR(40))
