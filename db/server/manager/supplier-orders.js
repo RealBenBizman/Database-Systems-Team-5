@@ -1,5 +1,6 @@
 // GET  /api/manager/supplier-orders -> list of orders with totals (managers only).
 // POST /api/manager/supplier-orders  body: { alertId, supplierId, quantity }  (managers only)
+//   The supplier must sell the product of the alert (SUPPLIER_PRODUCT); the order line uses that supplier's unit cost.
 const { route, HttpError, readBody } = require('../../lib/http');
 const { query, withTransaction } = require('../../lib/db');
 const { requireAuth } = require('../../lib/auth');
@@ -33,7 +34,7 @@ module.exports = route({
 
     return withTransaction(async (tx) => {
       const alert = await tx.query(
-        `SELECT a.Product_id AS productId, p.Cost_price AS unitCost
+        `SELECT a.Product_id AS productId
          FROM   LOW_STOCK_ALERT a
          JOIN   PRODUCT p ON p.Product_id = a.Product_id
          WHERE  a.Alert_id = @alertId AND a.Resolved_at IS NULL
@@ -47,7 +48,16 @@ module.exports = route({
         { supplierId });
       if (supplier.recordset.length === 0) throw new HttpError(404, 'Supplier not found.');
 
-      const { productId, unitCost } = alert.recordset[0];
+      const { productId } = alert.recordset[0];
+      // only a supplier that sells this product can be ordered from, at the cost it charges
+      const offer = await tx.query(
+        `SELECT Unit_cost AS unitCost FROM SUPPLIER_PRODUCT
+         WHERE Supplier_id = @supplierId AND Product_id = @productId AND Marked_for_deletion = 0`,
+        { supplierId, productId });
+      if (offer.recordset.length === 0) {
+        throw new HttpError(409, 'That supplier does not sell this product.', 'RULE_VIOLATION');
+      }
+      const unitCost = offer.recordset[0].unitCost;
 
       const made = await tx.query(
         `INSERT INTO SUPPLIER_ORDER (Supplier_id, Employee_id, Order_date, Status)

@@ -10,6 +10,7 @@ export default function SupplierOrdersPage() {
   const [alerts, setAlerts] = useState(null);     // null = still loading
   const [orders, setOrders] = useState(null);
   const [suppliers, setSuppliers] = useState([]);
+  const [links, setLinks] = useState([]);         // which supplier sells which product
   const [picks, setPicks] = useState({});         // per alert: { supplierId, quantity }
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
@@ -24,6 +25,7 @@ export default function SupplierOrdersPage() {
         setAlerts(a.alerts);
         setOrders(o.orders);
         setSuppliers(s.suppliers);
+        setLinks(s.links || []);
       })
       .catch((e) => setError(e.message));
   }
@@ -63,6 +65,13 @@ export default function SupplierOrdersPage() {
     }
   }
 
+  // the suppliers that sell this product, with what they charge
+  const offersFor = (productId) => links
+    .filter((l) => l.productId === productId)
+    .map((l) => ({ ...l, name: (suppliers.find((s) => s.supplierId === l.supplierId) || {}).name }))
+    .filter((l) => l.name)
+    .sort((a, b) => a.name.localeCompare(b.name));
+
   const header = <PageHeader title="Supplier orders" subtitle="Order stock for low-stock alerts, then receive it." />;
 
   if (alerts === null && error) return <>{header}<ErrorBanner>{error}</ErrorBanner></>;
@@ -74,13 +83,21 @@ export default function SupplierOrdersPage() {
     { key: 'threshold', label: 'Reorder at', numeric: true },
     {
       key: 'supplier', label: 'Supplier',
-      render: (a) => (
-        <select value={(picks[a.alertId] || {}).supplierId || ''}
-          onChange={(e) => setPick(a.alertId, 'supplierId', e.target.value)}>
-          <option value="">Choose supplier</option>
-          {suppliers.map((s) => <option key={s.supplierId} value={s.supplierId}>{s.name}</option>)}
-        </select>
-      ),
+      render: (a) => {
+        const offers = offersFor(a.productId);
+        if (offers.length === 0) return <span className="card-muted">No supplier sells this product. Link one in Suppliers.</span>;
+        return (
+          <select value={(picks[a.alertId] || {}).supplierId || ''}
+            onChange={(e) => setPick(a.alertId, 'supplierId', e.target.value)}>
+            <option value="">Choose supplier</option>
+            {offers.map((o) => (
+              <option key={o.supplierId} value={o.supplierId}>
+                {o.name} - ${Number(o.unitCost).toFixed(2)} each, {o.leadTimeDays} {o.leadTimeDays === 1 ? 'day' : 'days'}
+              </option>
+            ))}
+          </select>
+        );
+      },
     },
     {
       key: 'quantity', label: 'Quantity',
@@ -91,7 +108,7 @@ export default function SupplierOrdersPage() {
     },
     {
       key: 'order', label: '',
-      render: (a) => <Button onClick={() => createOrder(a.alertId)}>Order</Button>,
+      render: (a) => <Button disabled={offersFor(a.productId).length === 0} onClick={() => createOrder(a.alertId)}>Order</Button>,
     },
   ];
 
