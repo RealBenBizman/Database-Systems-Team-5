@@ -30,3 +30,15 @@ test('no login is refused (401)', async () => {
   const res = await call(inventory, {});
   expect(res.statusCode).toBe(401);
 });
+
+test('report lists supplier orders and sales figures', async () => {
+  const res = await call(inventory, { role: 'manager' });
+  expect(res.statusCode).toBe(200);
+  expect(Array.isArray(res.body.orders)).toBe(true);
+  const counted = res.body.ordersByStatus.reduce((sum, o) => sum + o.orders, 0);
+  expect(res.body.orders.length).toBe(counted);
+  res.body.products.forEach((p) => {
+    expect(typeof p.sold30).toBe('number');
+    expect(p.sold90).toBeGreaterThanOrEqual(p.sold30);
+  });
+});
