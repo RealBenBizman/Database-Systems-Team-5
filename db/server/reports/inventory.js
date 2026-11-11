@@ -5,6 +5,7 @@
 const { route } = require('../../lib/http');
 const { query } = require('../../lib/db');
 const { requireAuth } = require('../../lib/auth');
+const { orderTiming } = require('../../lib/inventoryMetrics');
 
 // One row per product. The view already leaves out flagged rows and gives
 // Stock_status ('OK', 'Low', 'Out of stock') and the open alert, if any.
@@ -29,15 +30,22 @@ const ORDERS_SQL = `
   WHERE  Marked_for_deletion = 0
   GROUP BY Status`;
 
-// every supplier order with its supplier, units and cost, newest first
+// every supplier order with its supplier, units and cost, newest first.
+// promisedDays is the longest lead time the supplier promised for the products on the order
+// (SUPPLIER_PRODUCT.Lead_time_days); daysTaken runs from the order date to the received date,
+// or to today while the order is still open.
 const ORDER_LIST_SQL = `
   SELECT o.Order_id AS orderId, s.Supplier_name AS supplier,
          o.Order_date AS orderDate, o.Received_date AS receivedDate, o.Status AS status,
          ISNULL(SUM(i.Quantity), 0) AS units,
-         ISNULL(SUM(i.Quantity * i.Unit_cost), 0) AS total
+         ISNULL(SUM(i.Quantity * i.Unit_cost), 0) AS total,
+         MAX(sp.Lead_time_days) AS promisedDays,
+         DATEDIFF(DAY, o.Order_date, ISNULL(o.Received_date, SYSDATETIME())) AS daysTaken
   FROM   SUPPLIER_ORDER o
   JOIN   SUPPLIER s ON s.Supplier_id = o.Supplier_id
   LEFT JOIN SUPPLIER_ORDER_ITEM i ON i.Order_id = o.Order_id AND i.Marked_for_deletion = 0
+  LEFT JOIN SUPPLIER_PRODUCT sp ON sp.Supplier_id = o.Supplier_id AND sp.Product_id = i.Product_id
+                               AND sp.Marked_for_deletion = 0
   WHERE  o.Marked_for_deletion = 0
   GROUP BY o.Order_id, s.Supplier_name, o.Order_date, o.Received_date, o.Status
   ORDER BY o.Order_date DESC, o.Order_id DESC`;
@@ -53,7 +61,7 @@ const SALES_SQL = `
   FROM   TRANSACTION_ITEM ti
   JOIN   SALES_TRANSACTION s ON s.Transaction_id = ti.Transaction_id
   WHERE  ti.Marked_for_deletion = 0 AND s.Marked_for_deletion = 0 AND s.Status = 'completed'
-  GROUP BY ti.Product_id`;  
+  GROUP BY ti.Product_id`;
 
 const STATUSES = ['Pending', 'Ordered', 'Received', 'Cancelled'];
 
@@ -80,7 +88,7 @@ module.exports = route({
         const s = soldBy[p.productId] || {};
         return { ...p, sold30: s.sold30 || 0, sold90: s.sold90 || 0, lastSale: s.lastSale || null };
       }),
-      orders: orderList,
+      orders: orderList.map((o) => ({ ...o, ...orderTiming(o) })),
       ordersByStatus: STATUSES.map((s) => ({ status: s, orders: counts[s] })),
       totals: {
         valueAtCost: cents / 100,

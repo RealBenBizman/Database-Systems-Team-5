@@ -30,7 +30,6 @@ test('no login is refused (401)', async () => {
   const res = await call(inventory, {});
   expect(res.statusCode).toBe(401);
 });
-
 test('report lists supplier orders and sales figures', async () => {
   const res = await call(inventory, { role: 'manager' });
   expect(res.statusCode).toBe(200);
