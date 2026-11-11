@@ -29,6 +29,32 @@ const ORDERS_SQL = `
   WHERE  Marked_for_deletion = 0
   GROUP BY Status`;
 
+// every supplier order with its supplier, units and cost, newest first
+const ORDER_LIST_SQL = `
+  SELECT o.Order_id AS orderId, s.Supplier_name AS supplier,
+         o.Order_date AS orderDate, o.Received_date AS receivedDate, o.Status AS status,
+         ISNULL(SUM(i.Quantity), 0) AS units,
+         ISNULL(SUM(i.Quantity * i.Unit_cost), 0) AS total
+  FROM   SUPPLIER_ORDER o
+  JOIN   SUPPLIER s ON s.Supplier_id = o.Supplier_id
+  LEFT JOIN SUPPLIER_ORDER_ITEM i ON i.Order_id = o.Order_id AND i.Marked_for_deletion = 0
+  WHERE  o.Marked_for_deletion = 0
+  GROUP BY o.Order_id, s.Supplier_name, o.Order_date, o.Received_date, o.Status
+  ORDER BY o.Order_date DESC, o.Order_id DESC`;
+
+// units sold per product in the last 30 and 90 days (completed sales only), and the last sale date
+const SALES_SQL = `
+  SELECT ti.Product_id AS productId,
+         SUM(CASE WHEN CAST(s.Transaction_date AS DATE) > DATEADD(DAY, -30, CAST(SYSDATETIME() AS DATE))
+                  THEN ti.Quantity ELSE 0 END) AS sold30,
+         SUM(CASE WHEN CAST(s.Transaction_date AS DATE) > DATEADD(DAY, -90, CAST(SYSDATETIME() AS DATE))
+                  THEN ti.Quantity ELSE 0 END) AS sold90,
+         MAX(CAST(s.Transaction_date AS DATE)) AS lastSale
+  FROM   TRANSACTION_ITEM ti
+  JOIN   SALES_TRANSACTION s ON s.Transaction_id = ti.Transaction_id
+  WHERE  ti.Marked_for_deletion = 0 AND s.Marked_for_deletion = 0 AND s.Status = 'completed'
+  GROUP BY ti.Product_id`;  
+
 const STATUSES = ['Pending', 'Ordered', 'Received', 'Cancelled'];
 
 module.exports = route({
@@ -37,6 +63,10 @@ module.exports = route({
 
     const products = (await query(PRODUCTS_SQL)).recordset;
     const orders = (await query(ORDERS_SQL)).recordset;
+    const orderList = (await query(ORDER_LIST_SQL)).recordset;
+    const sales = (await query(SALES_SQL)).recordset;
+    const soldBy = {};
+    sales.forEach((r) => { soldBy[r.productId] = r; });
 
     // always return all four statuses, with 0 when there are none
     const counts = {};
@@ -46,7 +76,11 @@ module.exports = route({
     const cents = products.reduce((sum, p) => sum + Math.round((Number(p.valueAtCost) || 0) * 100), 0);
 
     return {
-      products,
+      products: products.map((p) => {
+        const s = soldBy[p.productId] || {};
+        return { ...p, sold30: s.sold30 || 0, sold90: s.sold90 || 0, lastSale: s.lastSale || null };
+      }),
+      orders: orderList,
       ordersByStatus: STATUSES.map((s) => ({ status: s, orders: counts[s] })),
       totals: {
         valueAtCost: cents / 100,
