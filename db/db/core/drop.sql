@@ -5,11 +5,12 @@
    Dropping a table also drops the triggers on it, so triggers.sql
    must be run again after the schema file.
 
-   Order matters: the views first (VW_CART and the 4 report views), then tables
+   Order matters: the views first (VW_CART, VW_TIER_REWARD and the 4 report views), then tables
    CHILDREN FIRST because of the foreign keys. Keep this list in sync with the
    schema file (27 tables).
 
-   Rebuild order:  drop.sql -> schema.sql -> triggers.sql -> views.sql -> (optional) tests -> seed.sql
+   Rebuild order:  drop.sql -> schema.sql -> triggers.sql -> views.sql -> db/loyalty/tier_reward_view.sql ->
+   db/loyalty/tier_reward_triggers.sql -> db/checkout/sp_checkout.sql -> (optional) tests -> seed.sql
 */
 USE pos_store;
 GO
@@ -23,11 +24,13 @@ END
 GO
 
 -- Views (the report views read the tables, so they go first)
+DROP VIEW IF EXISTS VW_TIER_REWARD;
 DROP VIEW IF EXISTS VW_REWARDS_REPORT;
 DROP VIEW IF EXISTS VW_INVENTORY_REPORT;
 DROP VIEW IF EXISTS VW_SALES_BY_CATEGORY;
 DROP VIEW IF EXISTS VW_SALES_REPORT;
 DROP VIEW IF EXISTS VW_CART;
+DROP PROCEDURE IF EXISTS sp_Checkout;
 GO
 
 -- Tables, children first

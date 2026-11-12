@@ -1,15 +1,20 @@
 /*
    Shared components. Import what you need:
 
-     import { Button, Card, Table, Spinner, EmptyState, ErrorBanner, Field, PageHeader } from '../../shared/ui.jsx';
+     import { Button, Card, Table, Spinner, EmptyState, ErrorBanner, Field, PageHeader, ProductCard, Chip } from '../../shared/ui.jsx';
 
    Every screen should show: <Spinner/> while loading, <EmptyState/> when there
    is nothing to show, and <ErrorBanner/> when a call fails.
 */
+import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { coverGradient } from './cover.js';
 
-export function Button({ variant = 'primary', loading = false, block = false, disabled, children, to, className = '', ...rest }) {
-  const classes = `btn ${variant === 'secondary' ? 'btn-secondary' : variant === 'danger' ? 'btn-danger' : variant === 'ghost' ? 'btn-ghost' : ''} ${block ? 'btn-block' : ''} ${className}`.trim();
+const VARIANTS = { secondary: 'btn-secondary', danger: 'btn-danger', ghost: 'btn-ghost', accent: 'btn-accent', outline: 'btn-outline' };
+
+/* variant: primary (default) | secondary | accent | outline | ghost | danger.   size: 'lg' for hero buttons. */
+export function Button({ variant = 'primary', size, loading = false, block = false, disabled, children, to, className = '', ...rest }) {
+  const classes = ['btn', VARIANTS[variant], size === 'lg' && 'btn-lg', block && 'btn-block', className].filter(Boolean).join(' ');
   if (to) return <Link to={to} className={classes} {...rest}>{children}</Link>;
   return (
     <button className={classes} disabled={disabled || loading} {...rest}>
@@ -111,6 +116,75 @@ export function Table({ columns, rows, rowKey = 'id', empty = 'No rows to show.'
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+/*
+   A product tile for lists and grids. Put <ProductCard/>s inside <div className="product-grid">.
+
+     <ProductCard to={`/shop/${p.id}`} title={p.name} platform={p.platform} price="$59.99" seed={p.id} image={p.image}>
+       <Button onClick={() => addToCart(p.id)}>Add to cart</Button>
+     </ProductCard>
+
+   `image` is optional; without it the cover is a generated gradient based on `seed`. `children` is the
+   action area (usually the add-to-cart button). `wasPrice` shows a struck-through old price.
+*/
+export function ProductCard({ to, title, platform, price, wasPrice, image, seed, children }) {
+  const cover = image ? { backgroundImage: `url(${image})` } : { backgroundImage: coverGradient(seed ?? title) };
+  return (
+    <article className="product-card">
+      <Link to={to} aria-label={title}>
+        <div className="product-cover" style={cover}>
+          {platform && <span className="platform-tag">{platform}</span>}
+        </div>
+      </Link>
+      <div className="product-body">
+        <Link to={to}><div className="product-title">{title}</div></Link>
+        <div className="product-foot">
+          <span className="price">{price}{wasPrice && <s className="price-was">{wasPrice}</s>}</span>
+          {children}
+        </div>
+      </div>
+    </article>
+  );
+}
+
+/* A filter pill, e.g. one per platform. `active` shows which one is selected. */
+export function Chip({ active = false, children, ...rest }) {
+  return <button type="button" className="chip" aria-pressed={active} {...rest}>{children}</button>;
+}
+
+/*
+   The confirm step before removing something. Show it next to the thing being removed:
+
+     {removing === item.id && (
+       <ConfirmRemove
+         label="Remove this product?"
+         message="It will disappear from the shop and the inventory list."
+         busy={busy}
+         onConfirm={() => remove(item.id)}
+         onCancel={() => setRemoving(null)} />
+     )}
+
+   Escape cancels. While busy is true both buttons are disabled, so a double click
+   cannot send two requests. The server does the real work (lib/softDelete.js).
+*/
+export function ConfirmRemove({ label = 'Remove this item?', message, confirmText = 'Confirm removal', onConfirm, onCancel, busy = false }) {
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape' && !busy && onCancel) onCancel(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [busy, onCancel]);
+
+  return (
+    <div className="confirm-remove" role="group" aria-label="Confirm removal">
+      <p><strong>{label}</strong></p>
+      {message && <p className="card-muted">{message}</p>}
+      <div className="confirm-remove-actions">
+        <Button variant="danger" loading={busy} onClick={onConfirm}>{confirmText}</Button>
+        <Button variant="secondary" disabled={busy} onClick={onCancel}>Cancel</Button>
+      </div>
     </div>
   );
 }

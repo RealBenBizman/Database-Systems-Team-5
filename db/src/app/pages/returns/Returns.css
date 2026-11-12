@@ -1,0 +1,37 @@
+/* Part 3 screens: returns and rewards. Uses the design tokens only. Shares .co-* classes with Orders.css. */
+.rt-tabs { display: flex; gap: var(--space-2); flex-wrap: wrap; margin-bottom: var(--space-5); }
+.rt-list > * + * { margin-top: var(--space-4); }
+.rt-head { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-3); flex-wrap: wrap; }
+.rt-head h2 { margin: 0; }
+.rt-meta { color: var(--color-muted); font-size: var(--font-size-sm); margin: var(--space-1) 0 var(--space-3); }
+.rt-reason { margin: 0 0 var(--space-3); padding-left: var(--space-3); border-left: 3px solid var(--color-border); overflow-wrap: anywhere; }
+.rt-items { margin: 0 0 var(--space-3); }
+.rt-total { display: flex; justify-content: space-between; gap: var(--space-3); font-weight: 700; }
+.rt-actions { display: flex; gap: var(--space-3); flex-wrap: wrap; align-items: center; margin-top: var(--space-4); }
+.rt-confirm { margin-top: var(--space-4); padding: var(--space-3) var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-surface-2); }
+.rt-confirm p { margin: 0 0 var(--space-3); font-size: var(--font-size-sm); }
+.rt-note { margin-top: var(--space-3); color: var(--color-muted); font-size: var(--font-size-sm); }
+.rt-error { margin-top: var(--space-3); }
+.rt-policy { margin: 0; padding-left: var(--space-5); color: var(--color-muted); font-size: var(--font-size-sm); }
+.rt-policy li + li { margin-top: var(--space-2); }
+.rt-qty { min-width: 70px; padding: var(--space-2); border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-surface); font: inherit; color: inherit; }
+.rt-qty:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.rt-done { color: var(--color-muted); }
+.tag.rt-tag-requested { background: var(--color-warning-bg); color: var(--color-warning); }
+.tag.rt-tag-approved { background: var(--color-surface-2); color: var(--color-primary); }
+.tag.rt-tag-refunded { background: var(--color-success-bg); color: var(--color-success); }
+.tag.rt-tag-denied { background: var(--color-danger-bg); color: var(--color-danger); }
+
+.rw-hero { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--space-4); margin-bottom: var(--space-5); }
+.rw-points { font-size: 40px; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.rw-bar { height: 10px; background: var(--color-surface-2); border-radius: 999px; overflow: hidden; margin: var(--space-3) 0 var(--space-2); border: 1px solid var(--color-border); }
+.rw-bar > span { display: block; height: 100%; background: var(--color-primary); }
+.rw-pos { color: var(--color-success); font-weight: 700; }
+.rw-neg { color: var(--color-danger); font-weight: 700; }
+.rw-share { display: block; height: 8px; min-width: 2px; border-radius: 999px; background: var(--color-primary); }
+.rw-share-cell { min-width: 120px; }
+.tag.rw-tag-current { background: var(--color-success-bg); color: var(--color-success); }
+.tag.rw-tag-next { background: var(--color-warning-bg); color: var(--color-warning); }
+@media (max-width: 800px) {
+  .rw-points { font-size: 32px; }
+}

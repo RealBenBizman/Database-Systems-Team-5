@@ -18,11 +18,11 @@ if (fs.existsSync(envFile)) process.loadEnvFile(envFile);
 
 const { mockReq, mockRes, cookieFrom } = require('../tests/helpers');
 const db = require('../lib/db');
-const login = require('../api/auth/login');
-const employeeLogin = require('../api/auth/employee-login');
-const register = require('../api/auth/register');
-const logout = require('../api/auth/logout');
-const me = require('../api/auth/me');
+const login = require('../server/auth/login');
+const employeeLogin = require('../server/auth/employee-login');
+const register = require('../server/auth/register');
+const logout = require('../server/auth/logout');
+const me = require('../server/auth/me');
 
 let failures = 0;
 function check(label, ok, detail) {
@@ -67,11 +67,13 @@ const quiet = console.error;
     const mm = await call(me, { method: 'GET', headers: { cookie: cookieFrom(mg) } });
     check('/me returns the manager', mm.statusCode === 200 && mm.json.user.role === 'manager', `status ${mm.statusCode} ${mm.body}`);
 
-    // 5. the two sign-in doors are separate
-    const cross1 = await call(login, { body: { email: 'manager@posstore.test', password: PASSWORD }, ip: '6.6.6.1' });
-    const cross2 = await call(employeeLogin, { body: { email: 'alice.nguyen@posstore.test', password: PASSWORD }, ip: '6.6.6.2' });
-    check('A staff email cannot use customer sign-in', cross1.statusCode === 401, `status ${cross1.statusCode}`);
-    check('A customer email cannot use staff sign-in', cross2.statusCode === 401, `status ${cross2.statusCode}`);
+    // 5. one sign-in for everyone: the role comes from the account
+    const one1 = await call(login, { body: { email: 'manager@posstore.test', password: PASSWORD }, ip: '6.6.6.1' });
+    const one2 = await call(login, { body: { email: 'support1@posstore.test', password: PASSWORD }, ip: '6.6.6.2' });
+    check('Manager signs in through the single login', one1.statusCode === 200 && one1.json.user.role === 'manager', `status ${one1.statusCode}`);
+    check('Support signs in through the single login', one2.statusCode === 200 && one2.json.user.role === 'support', `status ${one2.statusCode}`);
+    const cross2 = await call(employeeLogin, { body: { email: 'alice.nguyen@posstore.test', password: PASSWORD }, ip: '6.6.6.3' });
+    check('A customer email cannot use the old staff-only endpoint', cross2.statusCode === 401, `status ${cross2.statusCode}`);
 
     // 6. throttle
     let last;

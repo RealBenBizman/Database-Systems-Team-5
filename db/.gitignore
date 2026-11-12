@@ -10,3 +10,6 @@ coverage/
 
 *.bak
 .DS_Store
+
+# generated Azure SQL copies of the db scripts (npm run azure:prepare)
+db/azure-build/
