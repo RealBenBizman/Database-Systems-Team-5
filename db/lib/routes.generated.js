@@ -45,6 +45,7 @@ module.exports = [
   { pattern: "products", load: () => require("../server/products/index.js") },
   { pattern: "products/[id]", load: () => require("../server/products/[id].js") },
   { pattern: "products/categories", load: () => require("../server/products/categories.js") },
+  { pattern: "reports/customers", load: () => require("../server/reports/customers.js") },
   { pattern: "reports/inventory", load: () => require("../server/reports/inventory.js") },
   { pattern: "reports/rewards", load: () => require("../server/reports/rewards.js") },
   { pattern: "reports/sales", load: () => require("../server/reports/sales.js") },

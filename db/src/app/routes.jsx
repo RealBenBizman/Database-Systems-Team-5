@@ -78,7 +78,7 @@ export const routes = [
   { path: '/returns/new', access: CUSTOMER, element: <RequestReturnPage />, owner: 'Part 3' },
   { path: '/rewards', access: CUSTOMER, nav: 'Rewards', element: <RewardsPage />, owner: 'Part 3' },
   { path: '/staff/returns', access: STAFF, nav: 'Returns queue', summary: 'Approve, deny and refund customer returns.', element: <ReturnsQueuePage />, owner: 'Part 3' },
-  { path: '/staff/reports/rewards', access: MANAGER, summary: 'Points, tiers and top earners.', element: <RewardsReportPage />, owner: 'Part 3' },
+  { path: '/staff/reports/rewards', access: MANAGER, summary: 'New and returning customers, repeat buyers, and members against non-members.', element: <RewardsReportPage />, owner: 'Part 3' },
 
   // ---- Part 4: back office ----
   { path: '/staff/dashboard', access: STAFF, nav: 'Alerts overview', summary: 'Open alerts and returns waiting (managers also see pending supplier orders).', element: <DashboardPage />, owner: 'Part 4' },
