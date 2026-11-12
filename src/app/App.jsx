@@ -2,8 +2,8 @@ import { Route, Routes } from 'react-router-dom';
 import Layout from '../shared/Layout.jsx';
 import ProtectedRoute from '../shared/ProtectedRoute.jsx';
 import { useAuth } from '../shared/auth.jsx';
-import NotFound from './pages/NotFound.jsx';
-import StaffHome from './pages/StaffHome.jsx';
+import NotFound from './pages/Login/NotFound.jsx';
+import StaffHome from './pages/Login/StaffHome.jsx';
 import { navFor, routes } from './routes.jsx';
 
 export default function App() {

@@ -1,0 +1,6 @@
+/* Card form on the checkout page (Checkout.jsx) */
+.pay-note { color: var(--color-muted); font-size: 14px; margin: 0 0 var(--space-4); }
+.pay-brand { color: var(--color-accent); font-weight: 600; }
+.pay-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }
+@media (max-width: 480px) { .pay-grid { grid-template-columns: 1fr; gap: 0; } }
+.pay-total { font-size: 18px; margin: 0 0 var(--space-4); }
