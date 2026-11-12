@@ -35,3 +35,26 @@
 @media (max-width: 800px) {
   .rw-points { font-size: 32px; }
 }
+
+/* The 30-day return rule as a big message (RequestReturnPage): open = progress notice, closed = whole-page block */
+.rp-notice, .rp-block { margin: var(--space-4) 0 var(--space-5); padding: var(--space-6); border-radius: var(--radius); border: 1px solid; }
+.rp-notice h2, .rp-block h2 { margin: 0 0 var(--space-2); font-size: 1.75rem; line-height: 1.2; overflow-wrap: anywhere; }
+.rp-notice p, .rp-block p { margin: 0; }
+.rp-eyebrow { margin-bottom: var(--space-2) !important; font-size: var(--font-size-sm); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.rp-notice { background: var(--color-warning-bg); border-color: var(--color-warning-border); }
+.rp-notice .rp-eyebrow { color: var(--color-warning); }
+.rp-bar { height: 14px; margin: var(--space-5) 0 var(--space-2); overflow: hidden; border-radius: 999px; background: rgba(255, 255, 255, .1); }
+.rp-bar span { display: block; height: 100%; border-radius: 999px; background: var(--color-warning); }
+.rp-bar-labels { display: flex; justify-content: space-between; gap: var(--space-3); color: var(--color-muted); font-size: var(--font-size-sm); }
+.rp-mid { align-self: center; text-align: center; font-weight: 700; color: inherit; }
+.rp-end { text-align: right; }
+.rp-block { padding: var(--space-8, 64px) var(--space-5); text-align: center; background: var(--color-danger-bg); border-color: var(--color-danger-border); }
+.rp-block h2 { font-size: 2rem; margin-bottom: var(--space-3); }
+.rp-block .rp-eyebrow { color: var(--color-danger); }
+.rp-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-3); margin-top: var(--space-5) !important; }
+@media (max-width: 600px) {
+  .rp-notice, .rp-block { padding: var(--space-5) var(--space-4); }
+  .rp-notice h2 { font-size: 1.4rem; }
+  .rp-block h2 { font-size: 1.5rem; }
+  .rp-bar-labels { font-size: 12px; }
+}

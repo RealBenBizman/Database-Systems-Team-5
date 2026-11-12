@@ -5,7 +5,7 @@
 import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../../../shared/api.js';
-import { Banner, Button, Card, EmptyState, ErrorBanner, Field, PageHeader, Spinner } from '../../../shared/ui.jsx';
+import { Button, Card, EmptyState, ErrorBanner, Field, PageHeader, Spinner } from '../../../shared/ui.jsx';
 import { date, money, useLoad } from '../storefront/components.jsx';
 import '../storefront/Storefront.css';
 import '../checkout/Orders.css';
@@ -16,6 +16,43 @@ const BLOCKED = {
   voided: () => 'Voided orders cannot be returned.',
   nothing_left: () => 'Everything in this order is already on a return.',
 };
+const BLOCKED_TITLE = { expired: 'Return window closed', voided: 'Order voided', nothing_left: 'Nothing left to return' };
+const WINDOW_DAYS = 30;
+
+// The 30-day rule, open: a big message with a bar that shows how much of the window has passed.
+function WindowOpen({ order }) {
+  const used = Math.min(WINDOW_DAYS, Math.max(0, WINDOW_DAYS - order.daysLeft));
+  const headline = order.daysLeft === 0
+    ? 'Today is the last day to return items from this order'
+    : `You have ${order.daysLeft} ${order.daysLeft === 1 ? 'day' : 'days'} left to return items from this order`;
+  return <section className="rp-notice" role="status">
+    <p className="rp-eyebrow">30-day return policy</p>
+    <h2>{headline}</h2>
+    <p>Return requests must be made within 30 days of the order. This order can be returned until {date(order.deadline)}.</p>
+    <div className="rp-bar" role="progressbar" aria-label="Days of the return window used" aria-valuemin={0} aria-valuemax={WINDOW_DAYS} aria-valuenow={used}>
+      <span style={{ width: `${Math.round((used / WINDOW_DAYS) * 100)}%` }} />
+    </div>
+    <div className="rp-bar-labels">
+      <span>Ordered<br /><strong>{date(order.date)}</strong></span>
+      <span className="rp-mid">{used} of {WINDOW_DAYS} days used</span>
+      <span className="rp-end">Return deadline<br /><strong>{date(order.deadline)}</strong></span>
+    </div>
+  </section>;
+}
+
+// The 30-day rule, closed (or the order cannot be returned for another reason): the page is replaced by one big message.
+function ReturnBlocked({ order }) {
+  const reason = order.blockedReason;
+  return <section className="rp-block" role="alert">
+    <p className="rp-eyebrow">{BLOCKED_TITLE[reason] || 'Return not available'}</p>
+    <h2>{(BLOCKED[reason] || (() => 'This order cannot be returned.'))(order)}</h2>
+    {reason === 'expired' && <p>Return requests must be made within 30 days of the order, so items from this order can no longer be returned.</p>}
+    <div className="rp-actions">
+      <Button to={`/orders/${order.id}`}>Back to the order</Button>
+      <Button to="/returns" variant="ghost">My returns</Button>
+    </div>
+  </section>;
+}
 
 export default function RequestReturnPage() {
   const [params] = useSearchParams();
@@ -67,13 +104,16 @@ export default function RequestReturnPage() {
     }
   }
 
+  if (!order.canReturn) {
+    return <div className="sf-page">
+      <PageHeader title={`Return items from order #${order.id}`} subtitle={`Placed ${date(order.date)}`} />
+      <ReturnBlocked order={order} />
+    </div>;
+  }
+
   return <div className="sf-page">
     <PageHeader title={`Return items from order #${order.id}`} subtitle={`Placed ${date(order.date)}`} />
-    {order.canReturn
-      ? <Banner kind="info">
-        {order.daysLeft === 0 ? 'Today is the last day' : `You have ${order.daysLeft} ${order.daysLeft === 1 ? 'day' : 'days'} left`} to return items from this order (until {date(order.deadline)}).
-      </Banner>
-      : <Banner kind="error">{BLOCKED[order.blockedReason](order)}</Banner>}
+    {order.canReturn && <WindowOpen order={order} />}
     <ErrorBanner error={error} />
 
     <form className="co-layout" onSubmit={submit} noValidate>

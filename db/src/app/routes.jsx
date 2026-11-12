@@ -39,11 +39,13 @@ import OrderConfirmation from './pages/checkout/OrderConfirmation.jsx';
 import Orders from './pages/checkout/Orders.jsx';
 import OrderDetail from './pages/checkout/OrderDetail.jsx';
 import SalesReport from './pages/reports/SalesReport.jsx';
+import SalesOrderDetail from './pages/reports/SalesOrderDetail.jsx';
 import MyReturnsPage from './pages/returns/MyReturnsPage.jsx';
 import RequestReturnPage from './pages/returns/RequestReturnPage.jsx';
 import RewardsPage from './pages/returns/RewardsPage.jsx';
 import ReturnsQueuePage from './pages/returns/ReturnsQueuePage.jsx';
 import RewardsReportPage from './pages/reports/RewardsReportPage.jsx';
+import ReturnsReportPage from './pages/reports/ReturnsReportPage.jsx';
 import ReportsHub from './pages/reports/ReportsHub.jsx';
 
 const Soon = ComingSoon;
@@ -71,19 +73,21 @@ export const routes = [
   { path: '/checkout/confirmation/:id', access: CUSTOMER, element: <OrderConfirmation />, owner: 'Part 2' },
   { path: '/orders', access: CUSTOMER, nav: 'My orders', element: <Orders />, owner: 'Part 2' },
   { path: '/orders/:id', access: CUSTOMER, element: <OrderDetail />, owner: 'Part 2' },
-  { path: '/staff/reports/sales', access: MANAGER, summary: 'Revenue, orders and units by day and category.', element: <SalesReport />, owner: 'Part 2' },
+  { path: '/staff/reports/sales', access: MANAGER, element: <SalesReport />, owner: 'Part 2' },
+  { path: '/staff/reports/sales/orders/:id', access: MANAGER, element: <SalesOrderDetail />, owner: 'Part 2' },
 
   // ---- Part 3: returns and rewards ----
   { path: '/returns', access: CUSTOMER, nav: 'Returns', element: <MyReturnsPage />, owner: 'Part 3' },
   { path: '/returns/new', access: CUSTOMER, element: <RequestReturnPage />, owner: 'Part 3' },
   { path: '/rewards', access: CUSTOMER, nav: 'Rewards', element: <RewardsPage />, owner: 'Part 3' },
   { path: '/staff/returns', access: STAFF, nav: 'Returns queue', summary: 'Approve, deny and refund customer returns.', element: <ReturnsQueuePage />, owner: 'Part 3' },
-  { path: '/staff/reports/rewards', access: MANAGER, summary: 'Points, tiers and top earners.', element: <RewardsReportPage />, owner: 'Part 3' },
+  { path: '/staff/reports/rewards', access: MANAGER, element: <RewardsReportPage />, owner: 'Part 3' },
+  { path: '/staff/reports/returns', access: MANAGER, element: <ReturnsReportPage />, owner: 'REP-4' },
 
   // ---- Part 4: back office ----
   { path: '/staff/dashboard', access: STAFF, nav: 'Alerts overview', summary: 'Open alerts and returns waiting (managers also see pending supplier orders).', element: <DashboardPage />, owner: 'Part 4' },
   { path: '/staff/inventory', access: STAFF, nav: 'Inventory', summary: 'Stock levels and low-stock alerts.', element: <InventoryPage />, owner: 'Part 4' },
-  { path: '/staff/reports/inventory', access: MANAGER, summary: 'Stock value and status per product.', element: <InventoryReportPage />, owner: 'Part 4' },
+  { path: '/staff/reports/inventory', access: MANAGER, element: <InventoryReportPage />, owner: 'Part 4' },
   { path: '/staff/products', access: MANAGER, nav: 'Products', summary: 'Create and edit products, change prices and adjust stock.', element: <ProductsPage />, owner: 'Part 4' },
   { path: '/staff/suppliers', access: MANAGER, nav: 'Supplier orders', summary: 'Order stock from suppliers and receive it.', element: <SupplierOrdersPage />, owner: 'Part 4' },
   { path: '/staff/supplier-list', access: MANAGER, nav: 'Suppliers', summary: 'Add suppliers, link the products they sell and their lead times.', element: <SuppliersPage />, owner: 'Part 4' },

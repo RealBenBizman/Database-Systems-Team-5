@@ -1,7 +1,8 @@
 // The access matrix: who may open which endpoint and screen.
 // If this fails after you add an endpoint or a screen, decide who may use it,
 // then add it to the right list below. (Nothing here touches the real database.)
-jest.mock('../lib/db', () => ({ query: jest.fn(), withTransaction: jest.fn() }));
+// `sql` is the real mssql module: the sales report builds typed parameters with sql.Int and sql.VarChar
+jest.mock('../lib/db', () => ({ sql: jest.requireActual('mssql'), query: jest.fn(), withTransaction: jest.fn() }));
 const fs = require('fs');
 const path = require('path');
 const db = require('../lib/db');

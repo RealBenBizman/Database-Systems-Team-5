@@ -23,8 +23,8 @@
   one-line caption; the filters live in the page URL; weeks start on Monday (lib/reportPeriods.js).
 */
 import { Link, useSearchParams } from 'react-router-dom';
-import { useCallback, useMemo } from 'react';
-import { PageHeader } from './ui.jsx';
+import { useCallback, useMemo, useState } from 'react';
+import { Banner, Button, EmptyState, PageHeader } from './ui.jsx';
 import {
   PRESETS, activePreset, changeInfo, compareLabel, presetRange, rangeProblem, readFilters, writeFilters,
 } from './reportFormat.js';
@@ -36,11 +36,16 @@ export { default as RecordsTable, downloadCsv } from './RecordsTable.jsx';
 
 // ---------- page frame ----------
 
+// The "All reports" link at the top of every report page.
+export function BackToReports() {
+  return <Link to="/staff/reports" className="report-back">&larr; All reports</Link>;
+}
+
 // Title, subtitle and a link back to the Reports hub.
 export function ReportPage({ title, subtitle, children }) {
   return (
     <>
-      <Link to="/staff/reports" className="report-back">&larr; All reports</Link>
+      <BackToReports />
       <PageHeader title={title} subtitle={subtitle} />
       {children}
     </>
@@ -163,6 +168,48 @@ export function useReportFilters(defaults) {
     setParams((current) => writeFilters({ ...readFilters(current, JSON.parse(key)), ...patch }, JSON.parse(key), current), { replace: true });
   }, [setParams, key]);
   return [filters, setFilters];
+}
+
+/*
+  The Run button. A report that uses it shows NOTHING until the manager has chosen the filters and pressed
+  Run report (the page is the form, the report is the answer).
+
+    const KEYS = ['from', 'to', 'compare'];                       // the filters that change what the server sends
+    const [filters, setFilters] = useReportFilters({ ...DEFAULTS, run: '' });   // `run` is the "already run" mark
+    const { applied, run, stale } = useRunControl(filters, setFilters, KEYS);
+    - applied  null until Run is pressed, then the values the report was run with (fetch when this changes)
+    - run      onClick for the button; it also marks the URL (run=1) so a shared link or the Back button from an
+               order opens the same report without pressing Run again
+    - stale    true when a filter in KEYS was changed after the last run (<RunHint/> then says the report on screen is out of date)
+  Put <RunButton .../> as the last child of the <FilterBar>, and <RunHint applied stale problem/> just under it.
+*/
+export function useRunControl(filters, setFilters, keys) {
+  const pick = useCallback((f) => Object.fromEntries(keys.map((k) => [k, f[k]])), [keys]);
+  const [applied, setApplied] = useState(() => (filters.run ? pick(filters) : null));
+  const run = useCallback(() => {
+    setApplied(pick(filters));
+    setFilters({ run: '1' });
+  }, [filters, setFilters, pick]);
+  const stale = applied !== null && keys.some((k) => String(applied[k]) !== String(filters[k]));
+  return { applied, run, stale };
+}
+
+export function RunButton({ onClick, disabled, loading }) {
+  return (
+    <div className="filter-group filter-run">
+      <Button type="button" onClick={onClick} disabled={disabled} loading={loading}>Run report</Button>
+    </div>
+  );
+}
+
+// Before the first run: the message that stands where the report will be. After a filter change: a note above
+// the report that is still on screen. A bad date range shows nothing here (the filter bar already says why).
+export function RunHint({ applied, stale, problem }) {
+  if (problem) return null;
+  if (!applied) {
+    return <EmptyState title="Choose the dates and filters, then press Run report">The report appears here after you run it.</EmptyState>;
+  }
+  return stale ? <Banner kind="info">The filters changed. Press Run report to update the numbers below.</Banner> : null;
 }
 
 /*
