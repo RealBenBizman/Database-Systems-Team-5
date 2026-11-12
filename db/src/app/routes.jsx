@@ -39,6 +39,7 @@ import OrderConfirmation from './pages/checkout/OrderConfirmation.jsx';
 import Orders from './pages/checkout/Orders.jsx';
 import OrderDetail from './pages/checkout/OrderDetail.jsx';
 import SalesReport from './pages/reports/SalesReport.jsx';
+import SalesOrderDetail from './pages/reports/SalesOrderDetail.jsx';
 import MyReturnsPage from './pages/returns/MyReturnsPage.jsx';
 import RequestReturnPage from './pages/returns/RequestReturnPage.jsx';
 import RewardsPage from './pages/returns/RewardsPage.jsx';
@@ -72,6 +73,7 @@ export const routes = [
   { path: '/orders', access: CUSTOMER, nav: 'My orders', element: <Orders />, owner: 'Part 2' },
   { path: '/orders/:id', access: CUSTOMER, element: <OrderDetail />, owner: 'Part 2' },
   { path: '/staff/reports/sales', access: MANAGER, summary: 'Revenue, orders and units by day and category.', element: <SalesReport />, owner: 'Part 2' },
+  { path: '/staff/reports/sales/orders/:id', access: MANAGER, element: <SalesOrderDetail />, owner: 'Part 2' },
 
   // ---- Part 3: returns and rewards ----
   { path: '/returns', access: CUSTOMER, nav: 'Returns', element: <MyReturnsPage />, owner: 'Part 3' },
