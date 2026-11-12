@@ -6,6 +6,8 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../../shared/api.js';
 import { Button, Card, PageHeader, Spinner, EmptyState, ErrorBanner, Field, Table } from '../../../shared/ui.jsx';
+import { BRAND_NAMES, cardLast4, cvvLength, detectBrand, digitsOnly, formatCardNumber, formatExpiry, validateCard } from '../../../shared/cardInput.js';
+import './Checkout.css';
 
 const money = (n) => `$${Number(n || 0).toFixed(2)}`;
 
@@ -14,9 +16,21 @@ export default function Checkout() {
   const [data, setData] = useState(null);
   const [loadError, setLoadError] = useState(null);
   const [method, setMethod] = useState('credit');
-  const [cardLast4, setCardLast4] = useState('');
+  // The card details stay in the browser: only the last 4 digits are sent (see src/shared/cardInput.js).
+  const [card, setCard] = useState({ name: '', number: '', expiry: '', cvv: '' });
+  const [fieldErrors, setFieldErrors] = useState({});
   const [placing, setPlacing] = useState(false);
   const [error, setError] = useState(null);
+
+  // change one or more card fields and clear their error messages
+  function update(patch) {
+    setCard((old) => ({ ...old, ...patch }));
+    setFieldErrors((old) => {
+      const next = { ...old };
+      Object.keys(patch).forEach((key) => delete next[key]);
+      return next;
+    });
+  }
 
   useEffect(() => {
     api.get('/api/checkout').then(setData).catch(setLoadError);
@@ -25,13 +39,15 @@ export default function Checkout() {
   async function placeOrder(e) {
     e.preventDefault();
     setError(null);
-    if (!/^\d{4}$/.test(cardLast4)) {
-      setError(new Error('Enter the last 4 digits of the card.'));
+    const problems = validateCard(card);
+    setFieldErrors(problems);
+    if (Object.keys(problems).length > 0) {
+      setError(new Error('Check the card details and try again.'));
       return;
     }
     setPlacing(true);
     try {
-      const r = await api.post('/api/checkout', { method, cardLast4 });
+      const r = await api.post('/api/checkout', { method, cardLast4: cardLast4(card.number) });
       navigate(`/checkout/confirmation/${r.transactionId}`, { replace: true });
     } catch (err) {
       setError(err);
@@ -47,6 +63,7 @@ export default function Checkout() {
 
   const a = data.address;
   const itemsOk = data.items.every((i) => i.available);
+  const brand = detectBrand(card.number);
 
   return (
     <>
@@ -85,9 +102,26 @@ export default function Checkout() {
               <option value="credit">Credit</option>
               <option value="debit">Debit</option>
             </Field>
-            <Field label="Last 4 digits of card" inputMode="numeric" value={cardLast4}
-              onChange={(e) => setCardLast4(e.target.value.replace(/\D/g, '').slice(0, 4))}
-              hint="We only keep the last 4 digits." />
+            <p className="pay-note">Card details are only used for this payment and are not saved. We keep only the last 4 digits.</p>
+            <Field label="Name on card" autoComplete="cc-name" placeholder="Name as shown on the card" maxLength={100}
+              value={card.name} error={fieldErrors.name}
+              onChange={(e) => update({ name: e.target.value })} />
+            <Field label="Card number" inputMode="numeric" autoComplete="cc-number" placeholder="1234 5678 9012 3456" maxLength={19}
+              value={card.number} error={fieldErrors.number}
+              hint={brand ? <span className="pay-brand">{BRAND_NAMES[brand]}</span> : undefined}
+              onChange={(e) => {
+                const number = formatCardNumber(e.target.value);
+                // the security code length depends on the card (4 for American Express): drop extra digits
+                update({ number, cvv: card.cvv.slice(0, cvvLength(detectBrand(number))) });
+              }} />
+            <div className="pay-grid">
+              <Field label="Expiration date (MM/YY)" inputMode="numeric" autoComplete="cc-exp" placeholder="MM/YY" maxLength={5}
+                value={card.expiry} error={fieldErrors.expiry}
+                onChange={(e) => update({ expiry: formatExpiry(e.target.value, card.expiry) })} />
+              <Field label="Security code (CVV)" type="password" inputMode="numeric" autoComplete="cc-csc" placeholder="CVV"
+                maxLength={cvvLength(brand)} value={card.cvv} error={fieldErrors.cvv}
+                onChange={(e) => update({ cvv: digitsOnly(e.target.value).slice(0, cvvLength(brand)) })} />
+            </div>
             <div className="row">
               <Button type="submit" loading={placing} disabled={!itemsOk}>Place order</Button>
               <Button variant="secondary" to="/cart">Back to cart</Button>

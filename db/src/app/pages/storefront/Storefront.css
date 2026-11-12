@@ -24,6 +24,10 @@
 .sf-art-condition { font-size: 12px; border: 1px solid var(--color-border); padding: 1px 8px; border-radius: 20px; color: var(--color-text); }
 .sf-product-art-large { min-height: 370px; margin: 0; padding: var(--space-5); }
 .sf-product-art-large svg { width: 200px; height: 156px; }
+/* Real product photo (see ProductVisual). The doubled class beats the placeholder rules and the phone rules below. */
+.sf-product-art.sf-product-art-photo { min-height: 0; padding: 0; aspect-ratio: 1 / 1; overflow: hidden; background: #fff; }
+.sf-product-art.sf-product-art-photo img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.sf-product-art-large.sf-product-art-photo { max-height: 520px; }
 .sf-price { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--space-2); font-variant-numeric: tabular-nums; }
 .sf-price strong { font-size: 21px; }
 .sf-price del { font-size: var(--font-size-sm); color: var(--color-muted); }

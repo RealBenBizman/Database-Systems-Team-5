@@ -19,7 +19,18 @@ export function useLoad(loader, dependencies = []) {
   return { ...state, reload: () => setVersion((value) => value + 1) };
 }
 
+// One photo per product: public/products/<SKU>.jpg (served by Vite and Vercel as /products/<SKU>.jpg).
+// If the file is missing (a product added later, a photo not uploaded yet) the browser reports an error
+// and the drawn placeholder below is shown instead, so nothing ever looks broken.
 export function ProductVisual({ product, large = false }) {
+  const [photoFailed, setPhotoFailed] = useState(false);
+  useEffect(() => { setPhotoFailed(false); }, [product.sku]);
+  if (product.sku && !photoFailed) {
+    return <div className={`sf-product-art sf-product-art-photo ${large ? 'sf-product-art-large' : ''}`}>
+      <img src={`/products/${encodeURIComponent(product.sku)}.jpg`} alt="" loading={large ? 'eager' : 'lazy'}
+        onError={() => setPhotoFailed(true)} />
+    </div>;
+  }
   return <div className={`sf-product-art ${large ? 'sf-product-art-large' : ''}`} aria-hidden="true">
     <span className="sf-art-category">{product.category}</span>
     <svg width="100" height="78" viewBox="0 0 100 78" fill="none">

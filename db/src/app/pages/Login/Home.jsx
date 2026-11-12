@@ -22,7 +22,7 @@ export default function Home() {
       <section className="hero">
         <div className="hero-inner">
           <div className="hero-copy">
-            <span className="eyebrow">Online and in store</span>
+            <span className="eyebrow">Online only</span>
             <h1>Level up your <em>library.</em></h1>
             <p className="hero-lead">{STORE_TAGLINE}</p>
             <div className="row">
