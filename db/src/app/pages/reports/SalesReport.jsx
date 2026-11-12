@@ -1,86 +1,210 @@
 // Sales report (managers only). Written by Terry (Part 2).
+// Filters -> KPIs (click to jump) -> charts -> records (order numbers open the order).
+// Run button (added by the team): nothing is shown until the manager picks the filters and presses Run report.
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { api } from '../../../shared/api.js';
-import { Button, Card, PageHeader, Spinner, EmptyState, ErrorBanner, Field, Table } from '../../../shared/ui.jsx';
+import { Spinner, ErrorBanner } from '../../../shared/ui.jsx';
+import {
+  ReportPage, ReportSection, FilterBar, DateRangeFilter, ChoiceFilter, SelectFilter, useReportFilters,
+  useRunControl, RunButton, RunHint,
+  KpiGrid, KpiCard, LineChart, BarChart, HBarChart, SegmentedBar, RecordsTable,
+  formatMoney, formatNumber, formatPercent, changeInfo, bucketLabel, shortDate,
+  presetRange, rangeProblem, COMPARE_OPTIONS, GROUP_OPTIONS,
+} from '../../../shared/reports.jsx';
 
-const money = (n) => `$${Number(n || 0).toFixed(2)}`;
-const day = (d) => (d ? String(d).slice(0, 10) : '');
+// `run` is the mark that the report was already run (it travels in the URL, so Back from an order keeps the report)
+const DEFAULTS = { ...presetRange('last30'), compare: 'previous', groupBy: 'day', category: '', product: '', method: '', run: '' };
+// the filters that change what the server sends back
+const KEYS = ['from', 'to', 'compare', 'groupBy', 'category', 'product', 'method'];
+const METHOD_NAMES = { credit: 'Credit', debit: 'Debit', unknown: 'Unknown' };
+
+// a card you can click to scroll down to the section behind its number
+function JumpTo({ target, children }) {
+  const go = (e) => {
+    e.preventDefault();
+    const el = document.getElementById(target);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+  return (
+    <a href={`#${target}`} onClick={go} style={{ display: 'block', color: 'inherit', textDecoration: 'none' }}>
+      {children}
+    </a>
+  );
+}
+
+// a section the cards can jump to (the margin keeps it from hiding under the top menu)
+const Anchor = ({ id, children }) => <div id={id} style={{ scrollMarginTop: 80 }}>{children}</div>;
 
 export default function SalesReport() {
-  const [from, setFrom] = useState(new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10));
-  const [to, setTo] = useState(new Date().toISOString().slice(0, 10));
+  const [filters, setFilters] = useReportFilters(DEFAULTS);
+  const { applied, run, stale } = useRunControl(filters, setFilters, KEYS);
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  // the category and product lists for the two dropdowns, read once before the first run (one day, nothing is shown)
+  const [lists, setLists] = useState({ categories: [], products: [] });
+  const problem = rangeProblem(filters.from, filters.to);
 
-  function load(e) {
-    if (e) e.preventDefault();
+  useEffect(() => {
+    let live = true;
+    const today = new Date().toISOString().slice(0, 10);
+    api.get('/api/reports/sales', { from: today, to: today, compare: 'none' })
+      .then((d) => { if (live) setLists(d.options); })
+      .catch(() => {});
+    return () => { live = false; };
+  }, []);
+
+  // the report is fetched only when Run is pressed (`applied` changes), never while the filters are being chosen
+  useEffect(() => {
+    if (!applied) return undefined;
+    let live = true;
     setLoading(true);
     setError(null);
-    api.get('/api/reports/sales', { from, to })
-      .then(setData)
-      .catch(setError)
-      .finally(() => setLoading(false));
-  }
+    setData(null);
+    api.get('/api/reports/sales', applied)
+      .then((d) => { if (live) setData(d); })
+      .catch((e) => { if (live) setError(e); })
+      .finally(() => { if (live) setLoading(false); });
+    return () => { live = false; };
+  }, [applied]);
 
-  useEffect(() => { load(); }, []);
+  const compare = applied ? applied.compare : filters.compare;
+  const options = data ? data.options : lists;
+  const productOptions = options.products.filter((x) => !filters.category || String(x.categoryId) === filters.category);
 
-  const sum = (key) => (data ? data.days.reduce((s, d) => s + Number(d[key] || 0), 0) : 0);
+  const filterBar = (
+    <FilterBar>
+      <DateRangeFilter from={filters.from} to={filters.to} onChange={setFilters} />
+      <ChoiceFilter label="Compare with" value={filters.compare} options={COMPARE_OPTIONS} onChange={(v) => setFilters({ compare: v })} />
+      <ChoiceFilter label="Group by" value={filters.groupBy} options={GROUP_OPTIONS} onChange={(v) => setFilters({ groupBy: v })} />
+      <SelectFilter label="Category" value={filters.category} onChange={(v) => setFilters({ category: v, product: '' })}
+        options={[{ value: '', label: 'All categories' }, ...options.categories.map((c) => ({ value: String(c.id), label: c.name }))]} />
+      <SelectFilter label="Product" value={filters.product} onChange={(v) => setFilters({ product: v })}
+        options={[{ value: '', label: 'All products' }, ...productOptions.map((x) => ({ value: String(x.id), label: x.name }))]} />
+      <SelectFilter label="Payment method" value={filters.method} onChange={(v) => setFilters({ method: v })}
+        options={[{ value: '', label: 'All methods' }, { value: 'credit', label: 'Credit' }, { value: 'debit', label: 'Debit' }]} />
+      <RunButton onClick={run} disabled={Boolean(problem)} loading={loading} />
+    </FilterBar>
+  );
 
-  return (
+  const page = (body) => (
+    <ReportPage title="Sales report">
+      {filterBar}
+      <RunHint applied={applied} stale={stale} problem={problem} />
+      {body}
+    </ReportPage>
+  );
+
+  if (!applied) return page(null);
+  if (error) return page(<ErrorBanner error={error} />);
+  if (!data) return page(<Spinner />);
+
+  const t = data.totals;
+  const p = data.previousTotals;
+  const comparing = compare !== 'none' && p;
+  const change = (key, opts = {}) => (comparing ? changeInfo({ current: t[key], previous: p[key], compare, ...opts }) : undefined);
+  const before = (key, fmt) => (comparing ? fmt(p[key]) : undefined);
+  const prevLabel = compare === 'lastyear' ? 'Last year' : 'Previous period';
+  const trendData = data.trend.map((d) => ({ label: bucketLabel(d.label, data.period.groupBy), revenue: d.revenue, previous: d.prevRevenue }));
+  const sold = data.products.filter((x) => x.units > 0);
+  const worst = [...data.products].sort((a, b) => a.revenue - b.revenue || a.units - b.units).slice(0, 5);
+  const orderUnits = data.orders.reduce((s, o) => s + Number(o.units || 0), 0);
+
+  return page(
     <>
-      <PageHeader title="Sales report" subtitle="Completed sales only. Revenue is after discounts, before tax." />
+      <KpiGrid>
+        <JumpTo target="trend">
+          <KpiCard label="Net revenue" value={formatMoney(t.net)} change={change('net')} previous={before('net', formatMoney)} />
+        </JumpTo>
+        <JumpTo target="orders">
+          <KpiCard label="Orders" value={formatNumber(t.orders)} change={change('orders')} previous={before('orders', formatNumber)} />
+        </JumpTo>
+        <JumpTo target="orders">
+          <KpiCard label="Average order value" value={formatMoney(t.avgOrder)} change={change('avgOrder')} previous={before('avgOrder', formatMoney)} />
+        </JumpTo>
+        <JumpTo target="products">
+          <KpiCard label="Units sold" value={formatNumber(t.units)} change={change('units')} previous={before('units', formatNumber)} />
+        </JumpTo>
+        <JumpTo target="by-category">
+          <KpiCard label="Gross profit" value={formatMoney(t.profit)} change={change('profit')} previous={before('profit', formatMoney)} hint={`Cost ${formatMoney(t.cost)}`} />
+        </JumpTo>
+        <JumpTo target="products">
+          <KpiCard label="Profit margin" value={formatPercent(t.margin)} change={change('margin', { kind: 'absolute', unit: 'points' })} previous={before('margin', (v) => formatPercent(v))} />
+        </JumpTo>
+      </KpiGrid>
 
-      <form onSubmit={load} className="row">
-        <Field label="From" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
-        <Field label="To" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
-        <Button type="submit" loading={loading}>Run report</Button>
-      </form>
+      <Anchor id="trend">
+        <ReportSection title="Trend" caption={data.period.groupByChanged ? 'Grouped by week (range over 92 days)' : undefined}>
+          <LineChart data={trendData} format={formatMoney} caption={`Net revenue per ${data.period.groupBy}`}
+            series={[{ key: 'revenue', label: 'This period' }, ...(comparing ? [{ key: 'previous', label: prevLabel, compare: true }] : [])]} />
+        </ReportSection>
+      </Anchor>
 
-      <ErrorBanner error={error} />
-      {loading && <Spinner label="Running the report..." />}
+      <Anchor id="by-category">
+        <ReportSection title="By category">
+          <BarChart data={data.byCategory.map((c) => ({ label: c.category, revenue: c.revenue, profit: c.profit }))} format={formatMoney}
+            series={[{ key: 'revenue', label: 'Net revenue' }, { key: 'profit', label: 'Gross profit' }]} />
+        </ReportSection>
+      </Anchor>
 
-      {!loading && data && data.days.length === 0 && (
-        <EmptyState title="No completed sales between these dates" />
-      )}
+      <Anchor id="sellers">
+        <ReportSection title="Best and worst sellers">
+          <HBarChart caption="Best sellers (units)" format={formatNumber}
+            rows={sold.slice(0, 5).map((x) => ({ label: x.name, value: x.units, note: formatMoney(x.revenue) }))} />
+          <HBarChart caption="Worst sellers (revenue)" format={formatMoney} color={1}
+            rows={worst.map((x) => ({ label: x.name, value: x.revenue, note: `${formatNumber(x.units)} sold` }))} />
+        </ReportSection>
+      </Anchor>
 
-      {!loading && data && data.days.length > 0 && (
-        <>
-          <div className="grid">
-            <Card title="Orders"><p>{sum('Orders')}</p></Card>
-            <Card title="Units sold"><p>{sum('Units')}</p></Card>
-            <Card title="Net revenue"><p>{money(sum('Net_revenue'))}</p></Card>
-            <Card title="Tax collected"><p>{money(sum('Tax_collected'))}</p></Card>
-          </div>
+      <Anchor id="payments">
+        <ReportSection title="Payment methods">
+          <SegmentedBar format={formatNumber}
+            parts={data.paymentMethods.map((m) => ({ label: METHOD_NAMES[m.method] || m.method, value: m.orders }))} />
+        </ReportSection>
+      </Anchor>
 
-          <Card title="By day">
-            <Table rowKey="Sale_date" rows={data.days} columns={[
-              { key: 'Sale_date', label: 'Date', render: (r) => day(r.Sale_date) },
-              { key: 'Orders', label: 'Orders', numeric: true },
-              { key: 'Units', label: 'Units', numeric: true },
-              { key: 'Gross_revenue', label: 'Gross', numeric: true, render: (r) => money(r.Gross_revenue) },
-              { key: 'Refunded_revenue', label: 'Refunded', numeric: true, render: (r) => money(r.Refunded_revenue) },
-              { key: 'Net_revenue', label: 'Net', numeric: true, render: (r) => money(r.Net_revenue) },
-            ]} />
-          </Card>
+      <Anchor id="products">
+        <RecordsTable
+          title="Products"
+          noun="products"
+          rows={data.products}
+          allCount={data.products.length}
+          rowKey="productId"
+          totalLabel="Total"
+          empty="No products match these filters."
+          columns={[
+            { key: 'name', label: 'Product' },
+            { key: 'category', label: 'Category' },
+            { key: 'units', label: 'Units', numeric: true, total: formatNumber(t.units) },
+            { key: 'revenue', label: 'Net revenue', numeric: true, render: (x) => formatMoney(x.revenue), total: formatMoney(t.net) },
+            { key: 'cost', label: 'Cost', numeric: true, render: (x) => formatMoney(x.cost), total: formatMoney(t.cost) },
+            { key: 'profit', label: 'Profit', numeric: true, render: (x) => formatMoney(x.profit), total: formatMoney(t.profit) },
+            { key: 'margin', label: 'Margin', numeric: true, render: (x) => (x.revenue > 0 ? formatPercent((x.profit / x.revenue) * 100) : '-'), sortValue: (x) => (x.revenue > 0 ? x.profit / x.revenue : null) },
+          ]}
+        />
+      </Anchor>
 
-          <Card title="By category">
-            <Table rowKey="Category_name" rows={data.byCategory} columns={[
-              { key: 'Category_name', label: 'Category' },
-              { key: 'Units', label: 'Units', numeric: true },
-              { key: 'Net_revenue', label: 'Net revenue', numeric: true, render: (r) => money(r.Net_revenue) },
-            ]} />
-          </Card>
-
-          <Card title="Top products">
-            <Table rowKey="Name" rows={data.topProducts} columns={[
-              { key: 'Name', label: 'Product' },
-              { key: 'Units', label: 'Units', numeric: true },
-              { key: 'Revenue', label: 'Revenue', numeric: true, render: (r) => money(r.Revenue) },
-            ]} />
-          </Card>
-        </>
-      )}
+      <Anchor id="orders">
+        <RecordsTable
+          title="Orders"
+          noun="orders"
+          rows={data.orders}
+          allCount={data.orders.length}
+          rowKey="orderId"
+          totalLabel="Total"
+          empty="No completed orders match these filters."
+          columns={[
+            { key: 'orderId', label: 'Order', render: (o) => <Link to={`/staff/reports/sales/orders/${o.orderId}`}>#{o.orderId}</Link> },
+            { key: 'saleDate', label: 'Date', render: (o) => shortDate(o.saleDate, true), sortValue: (o) => String(o.saleDate).slice(0, 10) },
+            { key: 'customer', label: 'Customer' },
+            { key: 'method', label: 'Paid with', render: (o) => METHOD_NAMES[o.method] || '-' },
+            { key: 'units', label: 'Units', numeric: true, total: formatNumber(orderUnits) },
+            { key: 'net', label: 'Net revenue', numeric: true, render: (o) => formatMoney(o.net), total: formatMoney(t.net) },
+            { key: 'profit', label: 'Profit', numeric: true, render: (o) => formatMoney(o.profit), total: formatMoney(t.profit) },
+          ]}
+        />
+      </Anchor>
     </>
   );
 }

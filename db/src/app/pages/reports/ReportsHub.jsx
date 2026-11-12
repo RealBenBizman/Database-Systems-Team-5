@@ -35,7 +35,6 @@ export default function ReportsHub() {
           return (
             <Card key={rep.path} title={route.nav || rep.title} to={rep.path}>
               <p className="card-muted">{rep.question}</p>
-              <p className="card-muted">{route.summary}</p>
             </Card>
           );
         })}
