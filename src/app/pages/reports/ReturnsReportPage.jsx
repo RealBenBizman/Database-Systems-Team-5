@@ -65,19 +65,20 @@ export default function ReturnsReportPage() {
           onChange={(e) => setTo(e.target.value)}
         />
 
-        <label>
-          Status
-          <select
+
+        <Field
+            label="Status"
+            as="select"
             value={status}
             onChange={(e) => setStatus(e.target.value)}
-          >
+        >
             <option value="all">All statuses</option>
             <option value="requested">Requested</option>
             <option value="approved">Approved</option>
             <option value="denied">Denied</option>
             <option value="refunded">Refunded</option>
-          </select>
-        </label>
+        </Field>
+
 
         <Field
           label="Search"
