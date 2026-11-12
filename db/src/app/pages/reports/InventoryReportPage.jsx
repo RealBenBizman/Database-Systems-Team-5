@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../../shared/api.js';
 import { Card, ErrorBanner, Field, PageHeader, Spinner, Table } from '../../../shared/ui.jsx';
+import { BackToReports } from '../../../shared/reports.jsx';
 import RecordsTable from './RecordsTable.jsx';
 
 const STATUSES = ['Pending', 'Ordered', 'Received', 'Cancelled'];
@@ -35,7 +36,12 @@ export default function InventoryReportPage() {
       .catch((e) => setError(e.message));
   }, []);
 
-  const header = <PageHeader title="Inventory report" subtitle="Stock, sales speed and supplier orders. Every number comes from the rows shown below it." />;
+  const header = (
+    <>
+      <BackToReports />
+      <PageHeader title="Inventory report" subtitle="Stock, sales speed and supplier orders. Every number comes from the rows shown below it." />
+    </>
+  );
 
   if (error) return <>{header}<ErrorBanner>{error}</ErrorBanner></>;
   if (report === null) return <>{header}<Spinner /></>;

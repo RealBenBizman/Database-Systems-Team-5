@@ -1,4 +1,4 @@
-// Part 2 tests: checkout, orders and the sales report. The database is faked, so
+// Part 2 tests: checkout and orders (the sales report is in tests/salesReport.test.js). The database is faked, so
 // these run without SQL Server: they check each endpoint's rules and responses.
 // (sp_Checkout itself is tested by db/checkout/test.sql.)
 jest.mock('../lib/db', () => {
@@ -12,7 +12,6 @@ const { mockReq, mockRes } = require('./helpers');
 const checkout = require('../server/checkout');
 const orders = require('../server/orders');
 const order = require('../server/orders/[id]');
-const sales = require('../server/reports/sales');
 
 const CUSTOMER = 1000001;
 const ORDER = 1000123;
@@ -274,74 +273,6 @@ describe('one order (GET /api/orders/<id>)', () => {
   test('needs a customer login', async () => {
     expect((await call(order, { query: { id: String(ORDER) }, role: null })).statusCode).toBe(401);
     expect((await call(order, { query: { id: String(ORDER) }, role: 'manager' })).statusCode).toBe(403);
-    expect(db.query).not.toHaveBeenCalled();
-  });
-});
-
-// ----------------------------------------------------------- GET /api/reports/sales
-describe('sales report (GET /api/reports/sales)', () => {
-  const DAYS = [{ Sale_date: '2026-10-26', Orders: 2, Units: 5, Gross_revenue: 200, Refunded_revenue: 20, Net_revenue: 180, Tax_collected: 14.85, Total_collected: 214.85 }];
-  const CATEGORIES = [{ Category_name: 'Video Games', Units: 3, Net_revenue: 120 }];
-  const TOP = [{ Name: 'Kingdom of Embers', Units: 3, Revenue: 134.97 }];
-  const report = () => fakeDb((text) => {
-    if (text.includes('VW_SALES_REPORT')) return result(DAYS);
-    if (text.includes('VW_SALES_BY_CATEGORY')) return result(CATEGORIES);
-    return result(TOP);
-  });
-  const run = (query = {}, extra = {}) => call(sales, { role: 'manager', userId: 1000900, query, ...extra });
-
-  test('returns the days, the categories and the top products for the dates asked', async () => {
-    report();
-    const res = await run({ from: '2026-10-01', to: '2026-10-31' });
-    expect(res.statusCode).toBe(200);
-    expect(res.json).toEqual({ from: '2026-10-01', to: '2026-10-31', days: DAYS, byCategory: CATEGORIES, topProducts: TOP });
-    expect(db.query).toHaveBeenCalledTimes(3);
-    for (const [, params] of db.query.mock.calls) expect(params).toEqual({ from: '2026-10-01', to: '2026-10-31' });
-  });
-
-  test('uses the last 30 days when no dates are given', async () => {
-    report();
-    const res = await run();
-    const day = 86400000;
-    const gap = (Date.parse(res.json.to) - Date.parse(res.json.from)) / day;
-    expect(gap).toBe(30);
-    expect(res.json.to).toBe(new Date().toISOString().slice(0, 10));
-  });
-
-  test('only completed sales, and the end date is converted with CAST', async () => {
-    report();
-    await run({ from: '2026-10-01', to: '2026-10-31' });
-    const top = db.query.mock.calls[2][0];
-    expect(top).toMatch(/s\.Status = 'completed'/);
-    expect(top).toMatch(/CAST\(@to AS DATE\)/);
-  });
-
-  test.each([
-    ['2026-99-99', '2026-10-31'],
-    ['2026-02-30', '2026-03-01'],
-    ['10/01/2026', '2026-10-31'],
-    ['2026-10-01', 'tomorrow'],
-    ['2026-10-01; DROP TABLE PRODUCT', '2026-10-31'],
-  ])('the dates %p to %p are refused', async (from, to) => {
-    report();
-    const res = await run({ from, to });
-    expect(res.statusCode).toBe(400);
-    expect(db.query).not.toHaveBeenCalled();
-  });
-
-  test('a start date after the end date is refused', async () => {
-    report();
-    const res = await run({ from: '2026-11-01', to: '2026-10-01' });
-    expect(res.statusCode).toBe(400);
-    expect(res.json.error).toMatch(/cannot be after/);
-    expect(db.query).not.toHaveBeenCalled();
-  });
-
-  test('managers only', async () => {
-    report();
-    expect((await run({}, { role: null })).statusCode).toBe(401);
-    expect((await run({}, { role: 'customer' })).statusCode).toBe(403);
-    expect((await run({}, { role: 'support' })).statusCode).toBe(403);
     expect(db.query).not.toHaveBeenCalled();
   });
 });
