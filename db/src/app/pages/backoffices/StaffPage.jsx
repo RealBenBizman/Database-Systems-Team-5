@@ -14,7 +14,7 @@ function AddForm({ employees, onDone, onCancel }) {
   const { error, saving, save } = useSave(onDone);
   const set = (key) => (e) => setForm({ ...form, [key]: e.target.value });
   return (
-    <Card title="Add an employee">
+    <Card reveal title="Add an employee">
       <form onSubmit={(e) => { e.preventDefault(); save(() => api.post('/api/manager/employees', form), 'Employee added. Give them the temporary password.'); }}>
         <ErrorBanner>{error}</ErrorBanner>
         <Field label="First name" value={form.firstName} onChange={set('firstName')} maxLength={50} required />
@@ -44,7 +44,7 @@ function RoleForm({ employee, onDone, onCancel }) {
   const [role, setRole] = useState(employee.role);
   const { error, saving, save } = useSave(onDone);
   return (
-    <Card title={'Change the role of ' + employee.firstName + ' ' + employee.lastName}>
+    <Card reveal title={'Change the role of ' + employee.firstName + ' ' + employee.lastName}>
       <form onSubmit={(e) => { e.preventDefault(); save(() => api.put('/api/manager/employees', { employeeId: employee.employeeId, role }), 'Role changed.'); }}>
         <ErrorBanner>{error}</ErrorBanner>
         <Field label="Role" as="select" value={role} onChange={(e) => setRole(e.target.value)}>

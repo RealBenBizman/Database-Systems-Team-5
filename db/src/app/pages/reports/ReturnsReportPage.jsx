@@ -5,17 +5,18 @@
 // Run button: nothing is shown until the manager picks the dates and presses Run report. Status, Reason and Search
 // then narrow the report that is on screen straight away (they work on the returns already loaded).
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { api } from '../../../shared/api.js';
 import { Banner, ErrorBanner, Field, Spinner, Table } from '../../../shared/ui.jsx';
 import {
   ChoiceFilter, COMPARE_OPTIONS, DateRangeFilter, FilterBar, InsightsPanel, KpiCard, KpiGrid, ReportPage,
-  ReportSection, RunButton, RunHint, SelectFilter, useReportFilters, useRunControl,
-  changeInfo, formatMoney, formatNumber, formatPercent, rangeProblem, shortDate,
+  ReportSection, RunButton, RunHint, SelectFilter, useReportFilters, useRunControl, JumpTo, Anchor,
+  BarChart, HBarChart, SegmentedBar, bucketLabel, changeInfo, formatMoney, formatNumber, formatPercent, rangeProblem, shortDate,
 } from '../../../shared/reports.jsx';
 import RecordsTable from './RecordsTable.jsx';
 import {
   LONG_WAIT_DAYS, REASON_GROUPS, SLOW_REFUND_DAYS, STATUSES, STATUS_LABEL,
-  byCategory, byMonth, byProduct, byReason, filterRows, insights, prepare, previousSummary, summarize,
+  byCategory, byMonth, byPeriod, byProduct, byReason, filterRows, insights, prepare, previousSummary, summarize,
 } from './returnsMetrics.js';
 
 // the filters that change what the server sends back (the others only narrow the returns already loaded)
@@ -32,10 +33,10 @@ const rate = (n) => (n === null || n === undefined ? 'No sales' : formatPercent(
 const days = (n) => `${Number(n).toFixed(1)} days`;
 
 export default function ReturnsReportPage() {
-  // the dates start as the last 90 days compared with the 90 days before; `run` marks that the report was already run
+  // the dates start as the last 30 days compared with the 30 days before; `run` marks that the report was already run
   const defaults = useMemo(() => {
     const today = Date.parse(`${ymd(Date.now())}T00:00:00Z`);
-    return { from: ymd(today - 89 * DAY_MS), to: ymd(today), compare: 'previous', status: 'All', reason: 'All', search: '', run: '' };
+    return { from: ymd(today - 29 * DAY_MS), to: ymd(today), compare: 'previous', status: 'All', reason: 'All', search: '', run: '' };
   }, []);
   const [filters, setFilters] = useReportFilters(defaults);
   const { from, to, compare } = filters;
@@ -109,6 +110,7 @@ function ReturnsContent({ data, filters }) {
   const products = byProduct(rows, data.soldByProduct);
   const categories = byCategory(rows, data.soldByProduct);
   const months = byMonth(rows);
+  const trend = byPeriod(rows, period.from, period.to);
   const notes = insights({ summary, before, reasons, products, backlog, period, filtered });
 
   const move = (key, kind, goodWhen, unit) => (before && before[key] !== null && before[key] !== undefined && summary[key] !== null
@@ -118,9 +120,9 @@ function ReturnsContent({ data, filters }) {
 
   const recordColumns = [
     { key: 'day', label: 'Requested', render: (r) => shortDate(r.day, true), sortValue: (r) => r.requestedAt, csv: (r) => r.day },
-    { key: 'id', label: 'Return #' },
-    { key: 'orderId', label: 'Order #' },
-    { key: 'customerName', label: 'Customer' },
+    { key: 'id', label: 'Return #', render: (r) => <Link to={`/staff/reports/returns/${r.id}`}>{r.id}</Link> },
+    { key: 'orderId', label: 'Order #', render: (r) => <Link to={`/staff/reports/sales/orders/${r.orderId}`}>{r.orderId}</Link> },
+    { key: 'customerName', label: 'Customer', render: (r) => (r.customerId ? <Link to={`/staff/reports/customers/${r.customerId}`}>{r.customerName}</Link> : r.customerName) },
     { key: 'productsText', label: 'Products and units' },
     { key: 'reasonGroup', label: 'Reason group' },
     { key: 'reason', label: 'What the customer wrote' },
@@ -156,125 +158,193 @@ function ReturnsContent({ data, filters }) {
         <Banner kind="info">Showing the first {records.rows.length} of {records.total} returns. Narrow the dates to see them all.</Banner>
       )}
 
-      <InsightsPanel insights={notes} />
-
-      <div style={{ height: 24 }} />
       <KpiGrid>
-        <KpiCard
-          label="Returns requested" value={formatNumber(summary.returns)}
-          change={move('returns', 'percent', 'down')} previous={before ? formatNumber(before.returns) : undefined}
-          hint={`${period.from} to ${period.to}`}
-        />
-        <KpiCard
-          label="Return rate" value={rate(summary.returnRate)}
-          change={move('returnRate', 'absolute', 'down', 'points')} previous={before && before.returnRate !== null ? formatPercent(before.returnRate) : undefined}
-          hint={`Returned units / units sold (${formatNumber(summary.unitsSold)} units sold).`}
-        />
-        <KpiCard
-          label="Units returned" value={formatNumber(summary.unitsReturned)}
-          change={move('unitsReturned', 'percent', 'down')} previous={before ? formatNumber(before.unitsReturned) : undefined}
-          hint="Requested, approved and refunded; not denied."
-        />
-        <KpiCard
-          label="Refunded cash" value={formatMoney(summary.refundedCash)}
-          change={move('refundedCash', 'percent', 'down')} previous={wasMoney('refundedCash')}
-          hint="Status Refunded only, tax included."
-        />
-        <KpiCard
-          label="Refunds as share of sales" value={summary.refundShare === null ? 'No sales' : formatPercent(summary.refundShare)}
-          change={move('refundShare', 'absolute', 'down', 'points')} previous={before && before.refundShare !== null ? formatPercent(before.refundShare) : undefined}
-          hint={`Refunded cash / sales with tax (${formatMoney(summary.revenue)}).`}
-        />
-        <KpiCard
-          label="Average days to refund" value={summary.avgDaysToRefund === null ? 'None refunded' : days(summary.avgDaysToRefund)}
-          change={move('avgDaysToRefund', 'absolute', 'down', 'days')} previous={before && before.avgDaysToRefund !== null ? days(before.avgDaysToRefund) : undefined}
-          hint={summary.slowRefunds > 0 ? `${summary.slowRefunds} took more than ${SLOW_REFUND_DAYS} days.` : 'From the request to the refund.'}
-        />
+        <JumpTo target="records">
+          <KpiCard
+            label="Returns requested" value={formatNumber(summary.returns)}
+            change={move('returns', 'percent', 'down')} previous={before ? formatNumber(before.returns) : undefined}
+            hint={`${period.from} to ${period.to}`}
+          />
+        </JumpTo>
+        <JumpTo target="categories">
+          <KpiCard
+            label="Return rate" value={rate(summary.returnRate)}
+            change={move('returnRate', 'absolute', 'down', 'points')} previous={before && before.returnRate !== null ? formatPercent(before.returnRate) : undefined}
+            hint={`Returned units / units sold (${formatNumber(summary.unitsSold)} units sold).`}
+          />
+        </JumpTo>
+        <JumpTo target="products">
+          <KpiCard
+            label="Units returned" value={formatNumber(summary.unitsReturned)}
+            change={move('unitsReturned', 'percent', 'down')} previous={before ? formatNumber(before.unitsReturned) : undefined}
+            hint="Requested, approved and refunded; not denied."
+          />
+        </JumpTo>
+        <JumpTo target="records">
+          <KpiCard
+            label="Refunded cash" value={formatMoney(summary.refundedCash)}
+            change={move('refundedCash', 'percent', 'down')} previous={wasMoney('refundedCash')}
+            hint="Status Refunded only, tax included."
+          />
+        </JumpTo>
+        <JumpTo target="records">
+          <KpiCard
+            label="Refunds as share of sales" value={summary.refundShare === null ? 'No sales' : formatPercent(summary.refundShare)}
+            change={move('refundShare', 'absolute', 'down', 'points')} previous={before && before.refundShare !== null ? formatPercent(before.refundShare) : undefined}
+            hint={`Refunded cash / sales with tax (${formatMoney(summary.revenue)}).`}
+          />
+        </JumpTo>
+        <JumpTo target="records">
+          <KpiCard
+            label="Average days to refund" value={summary.avgDaysToRefund === null ? 'None refunded' : days(summary.avgDaysToRefund)}
+            change={move('avgDaysToRefund', 'absolute', 'down', 'days')} previous={before && before.avgDaysToRefund !== null ? days(before.avgDaysToRefund) : undefined}
+            hint={summary.slowRefunds > 0 ? `${summary.slowRefunds} took more than ${SLOW_REFUND_DAYS} days.` : 'From the request to the refund.'}
+          />
+        </JumpTo>
       </KpiGrid>
 
-      <div style={{ height: 24 }} />
+      <div style={{ marginTop: 24 }}>
+        <InsightsPanel insights={notes} />
+      </div>
+
+      <Anchor id="trend">
+        <ReportSection title="Returns over time" caption="By the day the return was requested: is it going up or down?">
+          <BarChart
+            data={trend.points.map((p) => ({ label: bucketLabel(p.label, trend.by), returns: p.returns }))}
+            series={[{ key: 'returns', label: 'Returns requested' }]}
+            caption={trend.by === 'week' ? 'Returns requested per week (weeks start on Monday)' : 'Returns requested per day'}
+            emptyText="No returns match these filters."
+          />
+        </ReportSection>
+      </Anchor>
+
       <ReportSection
         title="Where the returns stand"
         caption="Counts every status for the returns in these dates. The Status filter does not change these four cards."
       >
         <KpiGrid>
-          <KpiCard
-            label={STATUS_LABEL.requested} value={formatNumber(states.waiting)}
-            hint={states.waiting > 0 ? `Oldest has waited ${states.oldestWait} days; ${states.longWaits} waited more than ${LONG_WAIT_DAYS}.` : 'Nothing is waiting.'}
-          />
-          <KpiCard
-            label={STATUS_LABEL.approved} value={formatNumber(states.approved)}
-            hint={states.approved > 0 ? `${formatMoney(states.approvedAmount)} still to refund.` : 'Nothing is waiting to be refunded.'}
-          />
-          <KpiCard label={STATUS_LABEL.refunded} value={formatNumber(states.refunded)} hint={`${formatMoney(states.refundedCash)} refunded.`} />
-          <KpiCard
-            label={STATUS_LABEL.denied} value={formatNumber(states.denied)}
-            hint={states.deniedShare === null ? 'Nothing decided yet.' : `${formatPercent(states.deniedShare, 0)} of decided returns.`}
-          />
+          <JumpTo target="records">
+            <KpiCard
+              label={STATUS_LABEL.requested} value={formatNumber(states.waiting)}
+              hint={states.waiting > 0 ? `Oldest has waited ${states.oldestWait} days; ${states.longWaits} waited more than ${LONG_WAIT_DAYS}.` : 'Nothing is waiting.'}
+            />
+          </JumpTo>
+          <JumpTo target="records">
+            <KpiCard
+              label={STATUS_LABEL.approved} value={formatNumber(states.approved)}
+              hint={states.approved > 0 ? `${formatMoney(states.approvedAmount)} still to refund.` : 'Nothing is waiting to be refunded.'}
+            />
+          </JumpTo>
+          <JumpTo target="records">
+            <KpiCard label={STATUS_LABEL.refunded} value={formatNumber(states.refunded)} hint={`${formatMoney(states.refundedCash)} refunded.`} />
+          </JumpTo>
+          <JumpTo target="records">
+            <KpiCard
+              label={STATUS_LABEL.denied} value={formatNumber(states.denied)}
+              hint={states.deniedShare === null ? 'Nothing decided yet.' : `${formatPercent(states.deniedShare, 0)} of decided returns.`}
+            />
+          </JumpTo>
         </KpiGrid>
+        <div style={{ height: 16 }} />
+        <SegmentedBar
+          caption="Returns by status"
+          emptyText="No returns in these dates."
+          parts={[
+            { label: STATUS_LABEL.requested, value: states.waiting },
+            { label: STATUS_LABEL.approved, value: states.approved },
+            { label: STATUS_LABEL.refunded, value: states.refunded },
+            { label: STATUS_LABEL.denied, value: states.denied, color: 'muted' },
+          ].filter((x) => x.value > 0)}
+        />
       </ReportSection>
 
-      <div style={{ height: 24 }} />
-      <ReportSection title="Returns by reason" caption="Customers type the reason; each one is put in a group by its key words.">
-        <Table rowKey="reason" rows={reasons} empty="No returns match these filters." columns={[
-          { key: 'reason', label: 'Reason group' },
-          { key: 'returns', label: 'Returns', numeric: true },
-          { key: 'share', label: 'Share of returns', numeric: true, render: (r) => `${r.share}%` },
-          { key: 'units', label: 'Units returned', numeric: true },
-          { key: 'refundedCash', label: 'Refunded cash', numeric: true, render: (r) => formatMoney(r.refundedCash) },
-        ]} />
-      </ReportSection>
+      <Anchor id="reasons">
+        <ReportSection title="Returns by reason" caption="Customers type the reason; each one is put in a group by its key words.">
+          <HBarChart
+            caption="Returns by reason group"
+            emptyText="No returns match these filters."
+            rows={reasons.map((r) => ({ label: r.reason, value: r.returns, note: `${r.share}% of returns` }))}
+          />
+          <div style={{ height: 16 }} />
+          <Table rowKey="reason" rows={reasons} empty="No returns match these filters." columns={[
+            { key: 'reason', label: 'Reason group' },
+            { key: 'returns', label: 'Returns', numeric: true },
+            { key: 'share', label: 'Share of returns', numeric: true, render: (r) => `${r.share}%` },
+            { key: 'units', label: 'Units returned', numeric: true },
+            { key: 'refundedCash', label: 'Refunded cash', numeric: true, render: (r) => formatMoney(r.refundedCash) },
+          ]} />
+        </ReportSection>
+      </Anchor>
+
+      <Anchor id="products">
+        <ReportSection
+          title="Most returned products"
+          caption="Return rate = units returned / units sold in the same dates. A product with few sales can show a high rate after one return."
+        >
+          <HBarChart
+            caption="Units returned, top 5 products"
+            emptyText="No returns match these filters."
+            rows={products.slice(0, 5).map((p) => ({ label: p.name, value: p.returned, note: `Return rate ${rate(p.rate)}` }))}
+          />
+          <div style={{ height: 16 }} />
+          <Table rowKey="productId" rows={products.slice(0, 10)} empty="No returns match these filters." columns={[
+            { key: 'name', label: 'Product' },
+            { key: 'category', label: 'Category' },
+            { key: 'sold', label: 'Units sold', numeric: true },
+            { key: 'returned', label: 'Units returned', numeric: true },
+            { key: 'rate', label: 'Return rate', numeric: true, render: (p) => rate(p.rate) },
+            { key: 'refundedCash', label: 'Refunded cash', numeric: true, render: (p) => formatMoney(p.refundedCash) },
+          ]} />
+          {products.length > 10 && <p className="card-muted">Showing the 10 most returned of {products.length} products.</p>}
+        </ReportSection>
+      </Anchor>
+
+      <Anchor id="categories">
+        <ReportSection title="Returns by category">
+          <HBarChart
+            caption="Return rate by category (units returned / units sold)"
+            color={1}
+            format={(v) => formatPercent(v)}
+            emptyText="No sales or returns in these dates."
+            rows={categories.map((c) => ({ label: c.category, value: c.rate === null || c.rate === undefined ? 0 : c.rate, note: `${formatNumber(c.returned)} of ${formatNumber(c.sold)} units` }))}
+          />
+          <div style={{ height: 16 }} />
+          <Table rowKey="category" rows={categories} empty="No sales or returns in these dates." columns={[
+            { key: 'category', label: 'Category' },
+            { key: 'sold', label: 'Units sold', numeric: true },
+            { key: 'returned', label: 'Units returned', numeric: true },
+            { key: 'rate', label: 'Return rate', numeric: true, render: (c) => rate(c.rate) },
+            { key: 'refundedCash', label: 'Refunded cash', numeric: true, render: (c) => formatMoney(c.refundedCash) },
+          ]} />
+        </ReportSection>
+      </Anchor>
+
+      <Anchor id="months">
+        <ReportSection title="Returns by month" caption="By the month the return was requested, oldest first: is it going up or down?">
+          <Table rowKey="month" rows={months} empty="No returns match these filters." columns={[
+            { key: 'month', label: 'Month', render: (m) => monthLabel(m.month) },
+            { key: 'returns', label: 'Returns', numeric: true },
+            { key: 'units', label: 'Units returned', numeric: true },
+            { key: 'refundedCash', label: 'Refunded cash', numeric: true, render: (m) => formatMoney(m.refundedCash) },
+          ]} />
+        </ReportSection>
+      </Anchor>
 
       <div style={{ height: 24 }} />
-      <ReportSection
-        title="Most returned products"
-        caption="Return rate = units returned / units sold in the same dates. A product with few sales can show a high rate after one return."
-      >
-        <Table rowKey="productId" rows={products.slice(0, 10)} empty="No returns match these filters." columns={[
-          { key: 'name', label: 'Product' },
-          { key: 'category', label: 'Category' },
-          { key: 'sold', label: 'Units sold', numeric: true },
-          { key: 'returned', label: 'Units returned', numeric: true },
-          { key: 'rate', label: 'Return rate', numeric: true, render: (p) => rate(p.rate) },
-          { key: 'refundedCash', label: 'Refunded cash', numeric: true, render: (p) => formatMoney(p.refundedCash) },
-        ]} />
-        {products.length > 10 && <p className="card-muted">Showing the 10 most returned of {products.length} products.</p>}
-      </ReportSection>
-
-      <div style={{ height: 24 }} />
-      <ReportSection title="Returns by category">
-        <Table rowKey="category" rows={categories} empty="No sales or returns in these dates." columns={[
-          { key: 'category', label: 'Category' },
-          { key: 'sold', label: 'Units sold', numeric: true },
-          { key: 'returned', label: 'Units returned', numeric: true },
-          { key: 'rate', label: 'Return rate', numeric: true, render: (c) => rate(c.rate) },
-          { key: 'refundedCash', label: 'Refunded cash', numeric: true, render: (c) => formatMoney(c.refundedCash) },
-        ]} />
-      </ReportSection>
-
-      <div style={{ height: 24 }} />
-      <ReportSection title="Returns by month" caption="By the month the return was requested, oldest first: is it going up or down?">
-        <Table rowKey="month" rows={months} empty="No returns match these filters." columns={[
-          { key: 'month', label: 'Month', render: (m) => monthLabel(m.month) },
-          { key: 'returns', label: 'Returns', numeric: true },
-          { key: 'units', label: 'Units returned', numeric: true },
-          { key: 'refundedCash', label: 'Refunded cash', numeric: true, render: (m) => formatMoney(m.refundedCash) },
-        ]} />
-      </ReportSection>
-
-      <div style={{ height: 24 }} />
-      <RecordsTable
-        title="Returns in this report"
-        noun="returns"
-        rows={rows}
-        allCount={all.length}
-        columns={recordColumns}
-        rowKey="id"
-        totalLabel={`Total of ${rows.length} ${rows.length === 1 ? 'return' : 'returns'}`}
-        empty="No returns match these filters."
-        csvName="returns-records.csv"
-        note="These are the returns behind every number above. The Units total leaves out denied returns and is the Units returned card; the Refunded cash total is the Refunded cash card. This table follows the Status filter; the four status cards do not."
-      />
+      <Anchor id="records">
+        <RecordsTable
+          title="Returns in this report"
+          noun="returns"
+          rows={rows}
+          allCount={all.length}
+          columns={recordColumns}
+          rowKey="id"
+          totalLabel={`Total of ${rows.length} ${rows.length === 1 ? 'return' : 'returns'}`}
+          empty="No returns match these filters."
+          csvName="returns-records.csv"
+          note="These are the returns behind every number above. The Units total leaves out denied returns and is the Units returned card; the Refunded cash total is the Refunded cash card. This table follows the Status filter; the four status cards do not."
+        />
+      </Anchor>
     </>
   );
 }

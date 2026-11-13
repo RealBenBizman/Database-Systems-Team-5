@@ -73,7 +73,7 @@ const withDay = (rows, ...keys) => rows.map((r) => {
 module.exports = route({
   GET: async (req) => {
     requireAuth(req, ['manager']);
-    const period = parsePeriod(req.query, { defaultDays: 90 });
+    const period = parsePeriod(req.query);
     const range = { from: period.from, to: period.to };
     const [customers, orders, categories, rewards, tiers, before] = await Promise.all([
       query(CUSTOMERS_SQL, range),

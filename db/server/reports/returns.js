@@ -9,7 +9,7 @@
 //   - Refunded cash counts only returns whose status is 'refunded'. Returned units count requested,
 //     approved and refunded returns (not denied). The page does that arithmetic from `records`.
 //   - The records and the numbers come from the same rows, so the table at the bottom adds up to the cards.
-//   - Dates use lib/reportPeriods.js (default: the last 90 days, compared with the 90 days before).
+//   - Dates use lib/reportPeriods.js (default: the last 30 days, compared with the 30 days before).
 const { route } = require('../../lib/http');
 const { query } = require('../../lib/db');
 const { requireAuth } = require('../../lib/auth');
@@ -26,7 +26,7 @@ const RETURNS_SQL = `
   SELECT TOP (${MAX_ROWS})
          r.Return_id AS id, r.Transaction_id AS orderId, r.Requested_at AS requestedAt,
          r.Status AS status, r.Reason AS reason, r.Refund_total AS refundTotal, r.Refunded_at AS refundedAt,
-         CONCAT(c.First_name, N' ', c.Last_name) AS customerName,
+         s.Customer_id AS customerId, CONCAT(c.First_name, N' ', c.Last_name) AS customerName,
          s.Transaction_date AS soldAt,
          DATEDIFF(DAY, s.Transaction_date, r.Requested_at) AS daysSinceSale,
          CASE WHEN r.Status = 'denied' THEN NULL
@@ -103,7 +103,7 @@ const list = (result) => (result && result.recordset) || [];
 module.exports = route({
   GET: async (req) => {
     requireAuth(req, ['manager']);
-    const period = parsePeriod(req.query, { defaultDays: 90 });
+    const period = parsePeriod(req.query);
     const current = { from: period.from, to: period.to };
     const before = period.previous;   // { from, to } or null when compare=none
 

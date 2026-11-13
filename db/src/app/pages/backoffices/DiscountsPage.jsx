@@ -17,7 +17,7 @@ function DiscountForm({ item, events, onDone, onCancel }) {
   const { error, saving, save } = useSave(onDone);
   const set = (key) => (e) => setForm({ ...form, [key]: e.target.value });
   return (
-    <Card title={item ? 'Edit ' + item.name : 'New discount'}>
+    <Card reveal title={item ? 'Edit ' + item.name : 'New discount'}>
       <form onSubmit={(e) => {
         e.preventDefault();
         const body = { ...form };
@@ -73,7 +73,7 @@ function LinksPanel({ discount, links, products, categories, say, reload, onClos
   const patch = (action, k, id, message) => save(
     () => api.patch('/api/manager/discounts', { discountId: discount.discountId, action, targetKind: k, targetId: id }), message);
   return (
-    <Card title={'Where ' + discount.name + ' applies'}>
+    <Card reveal title={'Where ' + discount.name + ' applies'}>
       <ErrorBanner>{error}</ErrorBanner>
       {mine.length === 0
         ? <p className="card-muted">Not linked to any product or category yet, so it changes no prices.</p>
@@ -180,7 +180,7 @@ function EventForm({ item, onDone, onCancel }) {
   const { error, saving, save } = useSave(onDone);
   const set = (key) => (e) => setForm({ ...form, [key]: e.target.value });
   return (
-    <Card title={item ? 'Edit ' + item.name : 'New sale event'}>
+    <Card reveal title={item ? 'Edit ' + item.name : 'New sale event'}>
       <form onSubmit={(e) => {
         e.preventDefault();
         save(() => (item ? api.put('/api/manager/sale-events', { ...form, saleEventId: item.saleEventId }) : api.post('/api/manager/sale-events', form)), 'Sale event saved.');

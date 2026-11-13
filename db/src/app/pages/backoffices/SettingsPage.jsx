@@ -12,7 +12,7 @@ function CategoryForm({ item, onDone, onCancel }) {
   const [form, setForm] = useState({ name: item ? item.name : '', description: item && item.description ? item.description : '' });
   const { error, saving, save } = useSave(onDone);
   return (
-    <Card title={item ? 'Edit category' : 'New category'}>
+    <Card reveal title={item ? 'Edit category' : 'New category'}>
       <form onSubmit={(e) => {
         e.preventDefault();
         save(
@@ -85,7 +85,7 @@ function TaxRateForm({ item, categories, onDone, onCancel }) {
   const set = (key) => (e) => setForm({ ...form, [key]: e.target.value });
   const rate = form.ratePercent === '' ? '' : Number(form.ratePercent) / 100;
   return (
-    <Card title={item ? 'Edit tax rate: ' + item.category + ' in ' + item.state : 'New tax rate'}>
+    <Card reveal title={item ? 'Edit tax rate: ' + item.category + ' in ' + item.state : 'New tax rate'}>
       <form onSubmit={(e) => {
         e.preventDefault();
         const dates = { effectiveFrom: form.effectiveFrom, effectiveTo: form.effectiveTo };
@@ -177,7 +177,7 @@ function ProgramForm({ item, onDone, onCancel }) {
   const { error, saving, save } = useSave(onDone);
   const set = (key) => (e) => setForm({ ...form, [key]: e.target.value });
   return (
-    <Card title={item ? 'Edit reward program' : 'New reward program'}>
+    <Card reveal title={item ? 'Edit reward program' : 'New reward program'}>
       <form onSubmit={(e) => {
         e.preventDefault();
         save(
@@ -257,7 +257,7 @@ function TierForm({ item, programId, onDone, onCancel }) {
   const { error, saving, save } = useSave(onDone);
   const set = (key) => (e) => setForm({ ...form, [key]: e.target.value });
   return (
-    <Card title={item ? 'Edit tier ' + item.tierName : 'New tier'}>
+    <Card reveal title={item ? 'Edit tier ' + item.tierName : 'New tier'}>
       <form onSubmit={(e) => {
         e.preventDefault();
         save(

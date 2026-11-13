@@ -6,7 +6,7 @@
    Every screen should show: <Spinner/> while loading, <EmptyState/> when there
    is nothing to show, and <ErrorBanner/> when a call fails.
 */
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { coverGradient } from './cover.js';
 
@@ -23,7 +23,35 @@ export function Button({ variant = 'primary', size, loading = false, block = fal
   );
 }
 
-export function Card({ title, to, children, className = '' }) {
+/*
+  `reveal` is for a card that opens when the manager presses a button on a row (an edit form, a remove question):
+  the page scrolls up to it if it opened above or below the part of the page that is on screen. It scrolls again
+  when the title changes (the same form opened for another row). Leave it off for cards that are always there.
+*/
+function useReveal(on, watch) {
+  const ref = useRef(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!on || !el) return;
+    const { top, bottom } = el.getBoundingClientRect();
+    const high = window.innerHeight;
+    const topShown = top >= 0 && top <= high - 120;
+    if (topShown && (bottom <= high || bottom - top > high)) return;   // on screen (or taller than the screen: its top is enough)
+    const calm = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    // off screen: bring its top to the top of the page; only its lower part hidden: scroll just enough to show it all
+    el.scrollIntoView({ behavior: calm ? 'auto' : 'smooth', block: topShown ? 'nearest' : 'start' });
+  }, [on, watch]);
+  return ref;
+}
+
+// The same thing for something that is not a card (an inline form or a confirm question inside a card).
+export function Reveal({ children, watch }) {
+  const ref = useReveal(true, watch);
+  return <div ref={ref} style={{ scrollMarginTop: 16 }}>{children}</div>;
+}
+
+export function Card({ title, to, children, className = '', reveal = false }) {
+  const ref = useReveal(reveal, title);
   const body = (
     <>
       {title && <h2>{title}</h2>}
@@ -31,7 +59,7 @@ export function Card({ title, to, children, className = '' }) {
     </>
   );
   if (to) return <Link to={to} className={`card ${className}`}>{body}</Link>;
-  return <section className={`card ${className}`}>{body}</section>;
+  return <section ref={ref} style={reveal ? { scrollMarginTop: 16 } : undefined} className={`card ${className}`}>{body}</section>;
 }
 
 export function PageHeader({ title, subtitle, children }) {

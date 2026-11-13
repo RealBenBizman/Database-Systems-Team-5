@@ -1,7 +1,7 @@
-// One order, opened from an order number on the sales report (managers only). Written by Terry (Part 2).
+// One order, opened from an order number on the sales, returns or customer behavior report (managers only). Written by Terry (Part 2).
 // Uses the team's existing manager endpoint: GET /api/manager/orders/<id>
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api } from '../../../shared/api.js';
 import { Button, Card, PageHeader, Spinner, ErrorBanner, EmptyState, Table } from '../../../shared/ui.jsx';
 import { KpiGrid, KpiCard, ReportSection, formatMoney, formatNumber } from '../../../shared/reports.jsx';
@@ -41,8 +41,8 @@ export default function SalesOrderDetail() {
     api.get(`/api/manager/orders/${id}`).then(setData).catch(setError);
   }, [id]);
 
-  // back to the report, with its filters still set
-  const back = <Button variant="ghost" onClick={() => navigate(-1)}>&larr; Sales report</Button>;
+  // back to the report this order was opened from (sales, returns or customers), with its filters still set
+  const back = <Button variant="ghost" onClick={() => navigate(-1)}>&larr; Back to the report</Button>;
 
   if (error && error.status === 404) return <EmptyState title="Order not found" action={back} />;
   if (error) return <><ErrorBanner error={error} />{back}</>;
@@ -92,7 +92,7 @@ export default function SalesOrderDetail() {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16, marginTop: 24 }}>
         <Card title="Customer">
-          <p style={{ margin: 0, fontWeight: 600 }}>{o.customerName}</p>
+          <p style={{ margin: 0, fontWeight: 600 }}><Link to={`/staff/reports/customers/${o.customerId}`}>{o.customerName}</Link></p>
           <p className="card-muted" style={{ overflowWrap: 'anywhere' }}>{o.email}</p>
         </Card>
         <Card title="Shipping">

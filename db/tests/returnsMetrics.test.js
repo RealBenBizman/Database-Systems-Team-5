@@ -182,6 +182,31 @@ describe('the tables', () => {
     expect(list.reduce((s, c) => s + c.returned, 0)).toBe(summary.unitsReturned);
   });
 
+  test('byPeriod: one point per day for a short range, zeros where nothing was requested', () => {
+    const t = m.byPeriod(rows, '2026-10-01', '2026-10-31');
+    expect(t.by).toBe('day');
+    expect(t.points).toHaveLength(31);
+    expect(t.points.map((x) => x.label).slice(0, 2)).toEqual(['2026-10-01', '2026-10-02']);
+    const day = (d) => t.points.find((x) => x.label === d);
+    expect(day('2026-10-05')).toMatchObject({ returns: 1, units: 1 });
+    expect(day('2026-10-10')).toMatchObject({ returns: 1, units: 0 });   // denied: counts as a return, not as units
+    expect(day('2026-10-06')).toMatchObject({ returns: 0, units: 0 });
+    // the returns of September and August are outside these dates
+    expect(t.points.reduce((sum, x) => sum + x.returns, 0)).toBe(3);
+  });
+
+  test('byPeriod: weeks starting on Monday for a long range', () => {
+    const t = m.byPeriod(rows, '2026-08-01', '2026-10-31');   // 92 days
+    expect(t.by).toBe('week');
+    expect(t.points[0].label).toBe('2026-07-27');            // the Monday of the week of Aug 1 (a Saturday)
+    expect(t.points.every((x) => new Date(`${x.label}T00:00:00Z`).getUTCDay() === 1)).toBe(true);
+    expect(t.points.reduce((sum, x) => sum + x.returns, 0)).toBe(rows.length);
+  });
+
+  test('byPeriod: a bad range gives no points', () => {
+    expect(m.byPeriod(rows, '2026-10-31', '2026-10-01').points).toEqual([]);
+  });
+
   test('byMonth: oldest first, counts add up', () => {
     const list = m.byMonth(rows);
     expect(list.map((x) => x.month)).toEqual(['2026-08', '2026-09', '2026-10']);
