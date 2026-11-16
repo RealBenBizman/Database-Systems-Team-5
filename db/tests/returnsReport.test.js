@@ -111,10 +111,10 @@ describe('GET /api/reports/returns', () => {
     expect(JSON.parse(itemCalls[0][1].ids)).toEqual([1000001, 1000002]);
   });
 
-  test('the default range is the last 90 days', async () => {
+  test('the default range is the last 30 days', async () => {
     fakeDatabase();
     const res = await call(returnsReport, { role: 'manager', query: {} });
-    expect(res.json.period.days).toBe(90);
+    expect(res.json.period.days).toBe(30);
   });
 
   test('a bad date is refused with 400 before any query runs', async () => {
@@ -154,6 +154,12 @@ describe('GET /api/reports/returns', () => {
     await get();
     expect(sqlOf('COUNT(*) OVER ()')[0]).toMatch(/LEFT JOIN CUSTOMER c/);
     expect(sqlOf('COUNT(*) OVER ()')[0]).not.toMatch(/c\.Marked_for_deletion/);
+  });
+
+  test('each return carries the customer id, so the report can open the customer', async () => {
+    fakeDatabase();
+    await get();
+    expect(sqlOf('COUNT(*) OVER ()')[0]).toMatch(/s\.Customer_id AS customerId/);
   });
 
   test('never selects card digits, emails or passwords', async () => {

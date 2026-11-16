@@ -25,7 +25,7 @@ function fakeDatabase() {
     }
     if (text.includes('AS categoryId')) return rows([{ categoryId: 1, category: 'Video Games', units: 20, revenue: 700, profit: 300 }]);
     if (text.includes('sold AS')) return rows([{ productId: 7, name: 'Kingdom of Embers', category: 'Video Games', units: 20, revenue: 700, cost: 400, profit: 300 }]);
-    if (text.includes('AS orderId')) return rows([{ orderId: 1001, saleDate: '2026-10-02', customer: 'Ava Foster', method: 'credit', units: 3, gross: 120, refunded: 20, cost: 50 }]);
+    if (text.includes('AS orderId')) return rows([{ orderId: 1001, saleDate: '2026-10-02', customerId: 1000007, customer: 'Ava Foster', method: 'credit', units: 3, gross: 120, refunded: 20, cost: 50 }]);
     if (text.includes('AS method')) return rows([{ method: 'credit', orders: 6, revenue: 600 }, { method: 'debit', orders: 4, revenue: 300 }]);
     return rows([]);
   });
@@ -62,7 +62,7 @@ describe('GET /api/reports/sales', () => {
     expect(b.products[0]).toMatchObject({ productId: 7, name: 'Kingdom of Embers', units: 20, revenue: 700, cost: 400, profit: 300 });
     expect(b.paymentMethods).toHaveLength(2);
     expect(b.orders).toEqual([{
-      orderId: 1001, saleDate: '2026-10-02', customer: 'Ava Foster', method: 'credit', units: 3,
+      orderId: 1001, saleDate: '2026-10-02', customerId: 1000007, customer: 'Ava Foster', method: 'credit', units: 3,
       gross: 120, refunded: 20, cost: 50, net: 100, profit: 50,
     }]);
     expect(b.options).toEqual({ categories: [{ id: 1, name: 'Video Games' }], products: [{ id: 7, name: 'Kingdom of Embers', categoryId: 1 }] });
@@ -150,6 +150,14 @@ describe('GET /api/reports/sales', () => {
     expect(text).toMatch(/ti\.Marked_for_deletion = 0/);
     expect(text).toMatch(/CAST\(@to AS DATE\)/);
     expect(text).toMatch(/pr\.Status = 'refunded'/);
+  });
+
+  test('each order carries the customer id, so the report can open the customer', async () => {
+    fakeDatabase();
+    await get();
+    const text = calls('AS orderId')[0][0];
+    expect(text).toMatch(/l\.Customer_id AS customerId/);
+    expect(text).toMatch(/GROUP BY l\.Transaction_id, l\.Customer_id/);
   });
 
   test('never selects card digits, emails or passwords', async () => {

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { api } from '../../../shared/api.js';
 import { RemoveCard, useLoad, useSave } from '../../../shared/manage.jsx';
-import { Banner, Button, Card, ConfirmRemove, ErrorBanner, Field, PageHeader, Spinner, Table } from '../../../shared/ui.jsx';
+import { Banner, Button, Card, ConfirmRemove, ErrorBanner, Field, PageHeader, Reveal, Spinner, Table } from '../../../shared/ui.jsx';
 
 const money = (n) => '$' + Number(n || 0).toFixed(2);
 
@@ -15,7 +15,7 @@ function SupplierForm({ supplier, onDone, onCancel }) {
   const { error, saving, save } = useSave(onDone);
   const set = (key) => (e) => setForm({ ...form, [key]: e.target.value });
   return (
-    <Card title={editing ? 'Edit ' + supplier.name : 'New supplier'}>
+    <Card reveal title={editing ? 'Edit ' + supplier.name : 'New supplier'}>
       <form onSubmit={(e) => {
         e.preventDefault();
         save(
@@ -96,7 +96,7 @@ function ProductLinks({ supplier, onClose, onChanged }) {
   }
 
   return (
-    <Card title={'Products sold by ' + supplier.name}>
+    <Card reveal title={'Products sold by ' + supplier.name}>
       {error && !data && <ErrorBanner>{error}</ErrorBanner>}
       {!data && !error && <Spinner />}
       {data && (
@@ -121,23 +121,27 @@ function ProductLinks({ supplier, onClose, onChanged }) {
             rows={data.links} rowKey="productId" empty="No products linked yet."
           />
           {removing && (
+            <Reveal watch={removing.productId}>
             <ConfirmRemove
               label={'Stop buying ' + removing.name + ' from ' + supplier.name + '?'}
               message="Only the link is removed. The product and past orders stay. You can add the link again later."
               busy={busy}
               onConfirm={() => removeLink(removing)}
               onCancel={() => setRemoving(null)} />
+            </Reveal>
           )}
           <div className="row" style={{ margin: '16px 0' }}>
             <Button type="button" onClick={() => { setRemoving(null); setForm({ link: null }); }}>Link a product</Button>
             <Button type="button" variant="secondary" onClick={onClose}>Close</Button>
           </div>
           {form && (
-            <LinkForm
-              key={form.link ? form.link.productId : 'new'}
-              supplier={supplier} link={form.link} products={data.products}
-              onCancel={() => setForm(null)}
-              onDone={() => { setForm(null); reload(); onChanged(); }} />
+            <Reveal watch={form.link ? form.link.productId : 'new'}>
+              <LinkForm
+                key={form.link ? form.link.productId : 'new'}
+                supplier={supplier} link={form.link} products={data.products}
+                onCancel={() => setForm(null)}
+                onDone={() => { setForm(null); reload(); onChanged(); }} />
+            </Reveal>
           )}
         </>
       )}

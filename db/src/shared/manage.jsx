@@ -70,7 +70,7 @@ export function RemoveCard({ title, label, message, url, done, onRemoved, onCanc
   }
 
   return (
-    <Card title={title}>
+    <Card reveal title={title}>
       <ErrorBanner>{error}</ErrorBanner>
       <ConfirmRemove label={label} message={message} busy={busy} onConfirm={remove} onCancel={onCancel} />
     </Card>

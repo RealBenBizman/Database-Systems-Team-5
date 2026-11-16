@@ -49,7 +49,7 @@ function ProductForm({ product, categories, onSaved, onCancel }) {
   }
 
   return (
-    <Card title={editing ? 'Edit ' + product.name : 'New product'}>
+    <Card reveal title={editing ? 'Edit ' + product.name : 'New product'}>
       <form onSubmit={submit}>
         <ErrorBanner>{error}</ErrorBanner>
         {!editing && <Field label="SKU" value={form.sku} onChange={set('sku')} maxLength={50} required />}
@@ -100,7 +100,7 @@ function PriceForm({ product, onSaved, onCancel }) {
   }
 
   return (
-    <Card title={'Change price: ' + product.name}>
+    <Card reveal title={'Change price: ' + product.name}>
       <form onSubmit={submit}>
         <ErrorBanner>{error}</ErrorBanner>
         <p className="card-muted">Current price {money(product.sellPrice)}. The change is logged with your name.</p>
@@ -134,7 +134,7 @@ function StockForm({ product, onSaved, onCancel }) {
   }
 
   return (
-    <Card title={'Adjust stock: ' + product.name}>
+    <Card reveal title={'Adjust stock: ' + product.name}>
       <form onSubmit={submit}>
         <ErrorBanner>{error}</ErrorBanner>
         <p className="card-muted">In stock now: {product.stock}. Use a negative number to remove units. Stock cannot go below 0.</p>
@@ -166,7 +166,7 @@ function RemovePanel({ product, onRemoved, onCancel }) {
   }
 
   return (
-    <Card title={'Remove ' + product.name}>
+    <Card reveal title={'Remove ' + product.name}>
       <ErrorBanner>{error}</ErrorBanner>
       <ConfirmRemove
         label={'Remove ' + product.name + '?'}

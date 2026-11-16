@@ -205,6 +205,33 @@ export function byMonth(rows) {
     .map((m) => ({ ...m, refundedCash: m.refundedCash / 100 }));
 }
 
+// returns requested over time, for the chart: one point per day (up to 62 days) or per week (weeks start on
+// Monday), with zeros where nothing was requested. `from` and `to` are 'YYYY-MM-DD'.
+export function byPeriod(rows, from, to) {
+  const DAY = 86400000;
+  const start = Date.parse(`${from}T00:00:00Z`);
+  const end = Date.parse(`${to}T00:00:00Z`);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) return { by: 'day', points: [] };
+  const days = Math.round((end - start) / DAY) + 1;
+  const by = days <= 62 ? 'day' : 'week';
+  const ymd = (ms) => new Date(ms).toISOString().slice(0, 10);
+  const monday = (ms) => ms - ((new Date(ms).getUTCDay() + 6) % 7) * DAY;     // getUTCDay: 0 = Sunday
+  const keyOf = (ms) => (by === 'day' ? ymd(ms) : ymd(monday(ms)));
+  const points = new Map();
+  for (let t = by === 'day' ? start : monday(start); t <= end; t += by === 'day' ? DAY : 7 * DAY) {
+    points.set(ymd(t), { label: ymd(t), returns: 0, units: 0, refundedCash: 0 });
+  }
+  rows.forEach((r) => {
+    const ms = Date.parse(`${r.day}T00:00:00Z`);
+    const p = Number.isFinite(ms) && points.get(keyOf(ms));
+    if (!p) return;
+    p.returns += 1;
+    p.units += r.countedUnits;
+    p.refundedCash = (cents(p.refundedCash) + cents(r.refundedCash)) / 100;
+  });
+  return { by, points: [...points.values()] };
+}
+
 // ---------- "What this means" ----------
 
 const money = (n) => Number(n || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' });

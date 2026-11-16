@@ -41,6 +41,29 @@ export function BackToReports() {
   return <Link to="/staff/reports" className="report-back">&larr; All reports</Link>;
 }
 
+/*
+  Click a KPI card to scroll down to the part of the page its number comes from.
+    <JumpTo target="orders"><KpiCard .../></JumpTo>      ...      <Anchor id="orders"> the table or chart </Anchor>
+  Every report page uses these two, so the cards behave the same way everywhere.
+*/
+export function JumpTo({ target, children }) {
+  const go = (e) => {
+    e.preventDefault();
+    const el = document.getElementById(target);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+  return (
+    <a href={`#${target}`} onClick={go} style={{ display: 'block', color: 'inherit', textDecoration: 'none' }}>
+      {children}
+    </a>
+  );
+}
+
+// A part of the page the cards can jump to (the margin keeps it from hiding under the top menu).
+export function Anchor({ id, children }) {
+  return <div id={id} style={{ scrollMarginTop: 80 }}>{children}</div>;
+}
+
 // Title, subtitle and a link back to the Reports hub.
 export function ReportPage({ title, subtitle, children }) {
   return (

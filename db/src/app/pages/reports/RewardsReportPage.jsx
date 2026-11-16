@@ -4,10 +4,11 @@
 // Run button (added by the team): nothing is shown until the manager picks the dates and presses Run report. The
 // tier, type, category, search and order filters then narrow the report on screen straight away.
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { api } from '../../../shared/api.js';
 import { ErrorBanner, Field, Spinner, Table } from '../../../shared/ui.jsx';
 import {
-  ReportPage, ReportSection, FilterBar, DateRangeFilter, ChoiceFilter, useReportFilters, useRunControl, RunButton, RunHint,
+  ReportPage, ReportSection, FilterBar, DateRangeFilter, ChoiceFilter, SelectFilter, useReportFilters, useRunControl, RunButton, RunHint, JumpTo, Anchor,
   KpiGrid, KpiCard, InsightsPanel, StackedBars, SegmentedBar, RecordsTable,
   formatMoney, formatNumber, formatPercent, changeInfo, bucketLabel, shortDate, rangeProblem, COMPARE_OPTIONS,
 } from '../../../shared/reports.jsx';
@@ -19,7 +20,7 @@ const NO_TIER = 'No tier';
 const LOW_REPEAT = 30;
 const daysAgo = (n) => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
 // `run` is the mark that the report was already run (it travels in the URL); KEYS are the filters the server needs
-const DEFAULTS = { from: daysAgo(89), to: daysAgo(0), compare: 'previous', run: '' };
+const DEFAULTS = { from: daysAgo(29), to: daysAgo(0), compare: 'previous', run: '' };
 const KEYS = ['from', 'to', 'compare'];
 const cents = (n) => Math.round(Number(n || 0) * 100);
 const pct = (part, whole) => (whole > 0 ? (part / whole) * 100 : null);
@@ -79,26 +80,27 @@ export default function RewardsReportPage() {
       <FilterBar>
         <DateRangeFilter from={filters.from} to={filters.to} onChange={setFilters} />
         <ChoiceFilter label="Compare with" value={filters.compare} options={COMPARE_OPTIONS} onChange={(v) => setFilters({ compare: v })} />
+        <SelectFilter
+          label="Loyalty tier" value={tier} onChange={setTier}
+          options={[
+            { value: 'All', label: 'All' },
+            { value: 'Members', label: 'Members (any tier)' },
+            { value: NO_TIER, label: 'Non-members (no tier)' },
+            ...tiers.map((t) => ({ value: t, label: t })),
+          ]}
+        />
+        <SelectFilter
+          label="Customer type" value={type} onChange={setType}
+          options={[{ value: 'All', label: 'All' }, ...TYPES.map((t) => ({ value: t, label: t }))]}
+        />
+        <SelectFilter
+          label="Buys most" value={category} onChange={setCategory}
+          options={[{ value: 'All', label: 'All' }, ...categories.map((c) => ({ value: c, label: c }))]}
+        />
+        <Field label="Search" type="search" placeholder="Customer name" value={search} onChange={(e) => setSearch(e.target.value)} />
         <RunButton onClick={run} disabled={Boolean(problem)} loading={loading} />
       </FilterBar>
       <RunHint applied={applied} stale={stale} problem={problem} />
-      <div className="row">
-        <Field label="Loyalty tier" as="select" value={tier} onChange={(e) => setTier(e.target.value)}>
-          <option value="All">All</option>
-          <option value="Members">Members (any tier)</option>
-          <option value={NO_TIER}>Non-members (no tier)</option>
-          {tiers.map((t) => <option key={t} value={t}>{t}</option>)}
-        </Field>
-        <Field label="Customer type" as="select" value={type} onChange={(e) => setType(e.target.value)}>
-          <option value="All">All</option>
-          {TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-        </Field>
-        <Field label="Buys most" as="select" value={category} onChange={(e) => setCategory(e.target.value)}>
-          <option value="All">All</option>
-          {categories.map((c) => <option key={c} value={c}>{c}</option>)}
-        </Field>
-        <Field label="Search" type="text" placeholder="Customer name" value={search} onChange={(e) => setSearch(e.target.value)} />
-      </div>
       {body}
     </ReportPage>
   );
@@ -223,7 +225,7 @@ export default function RewardsReportPage() {
   }
 
   const customerColumns = [
-    { key: 'name', label: 'Customer' },
+    { key: 'name', label: 'Customer', render: (c) => <Link to={`/staff/reports/customers/${c.customerId}`}>{c.name}</Link> },
     { key: 'tier', label: 'Tier' },
     {
       key: 'type', label: 'Type',
@@ -250,11 +252,16 @@ export default function RewardsReportPage() {
 
   const orders = allOrders.filter((o) => orderKind === 'All' || (orderKind === 'First' ? o.orderNo === 1 : o.orderNo > 1));
   const orderColumns = [
-    { key: 'orderId', label: 'Order', render: (o) => `#${o.orderId}` },
+    { key: 'orderId', label: 'Order', render: (o) => <Link to={`/staff/reports/sales/orders/${o.orderId}`}>#{o.orderId}</Link>, sortValue: (o) => o.orderId },
     { key: 'saleDate', label: 'Date', render: (o) => shortDate(o.saleDate, true) },
-    { key: 'customer', label: 'Customer' },
+    { key: 'customer', label: 'Customer', render: (o) => <Link to={`/staff/reports/customers/${o.customerId}`}>{o.customer}</Link> },
     { key: 'tier', label: 'Tier' },
-    { key: 'orderNo', label: "Customer's order", render: (o) => (o.orderNo === 1 ? 'First order' : `Repeat (no. ${o.orderNo})`) },
+    {
+      key: 'orderNo', label: "Customer's order",
+      render: (o) => (o.orderNo === 1 ? 'First order' : `Repeat (no. ${o.orderNo})`),
+      sortValue: (o) => o.orderNo,
+      csv: (o) => (o.orderNo === 1 ? 'First order' : `Repeat (no. ${o.orderNo})`),
+    },
     { key: 'units', label: 'Units', numeric: true, total: formatNumber(add(orders, 'units')) },
     { key: 'total', label: 'Total', numeric: true, render: (o) => formatMoney(o.total), total: formatMoney(addMoney(orders, 'total')) },
   ];
@@ -279,104 +286,134 @@ export default function RewardsReportPage() {
         {' '}{formatNumber(now.orders)} orders worth {formatMoney(now.revenue)}.
       </p>
       <KpiGrid>
-        <KpiCard label="Active customers" value={formatNumber(now.buyers)} change={change('buyers')} previous={before('buyers', formatNumber)}
-          hint={`${fresh.length} new, ${back.length} returning`} />
-        <KpiCard label="Orders per customer" value={perEach(now.perCustomer)} change={change('perCustomer')} previous={before('perCustomer', perEach)}
-          hint="Orders divided by the customers who bought." />
-        <KpiCard label="Average order value" value={formatMoney(now.avgOrder)} change={change('avgOrder')} previous={before('avgOrder', formatMoney)}
-          hint="After discounts, before tax." />
-        <KpiCard label="Spend per customer" value={formatMoney(now.spendEach)} change={change('spendEach')} previous={before('spendEach', formatMoney)}
-          hint="The Spent column divided by the customers who bought." />
-        <KpiCard label="Repeat customer rate" value={formatPercent(repeat)}
-          hint="Buyers with more than one order to date." />
-        <KpiCard label="Retention rate" value={formatPercent(retention)}
-          hint={`${back.length} of ${back.length + lost.length} earlier customers ordered again.`} />
-        <KpiCard label="Reward redemption rate" value={formatPercent(redemption)}
-          hint={rewards.length ? `${used.length} of ${rewards.length} tier rewards used.` : 'No tier rewards issued yet.'} />
-        <KpiCard label="Points earned" value={formatNumber(pointsEarned)}
-          hint={`${formatNumber(pointsBack)} taken back by refunds.`} />
+        <JumpTo target="customers">
+          <KpiCard label="Active customers" value={formatNumber(now.buyers)} change={change('buyers')} previous={before('buyers', formatNumber)}
+            hint={`${fresh.length} new, ${back.length} returning`} />
+        </JumpTo>
+        <JumpTo target="customers">
+          <KpiCard label="Orders per customer" value={perEach(now.perCustomer)} change={change('perCustomer')} previous={before('perCustomer', perEach)}
+            hint="Orders divided by the customers who bought." />
+        </JumpTo>
+        <JumpTo target="orders">
+          <KpiCard label="Average order value" value={formatMoney(now.avgOrder)} change={change('avgOrder')} previous={before('avgOrder', formatMoney)}
+            hint="After discounts, before tax." />
+        </JumpTo>
+        <JumpTo target="customers">
+          <KpiCard label="Spend per customer" value={formatMoney(now.spendEach)} change={change('spendEach')} previous={before('spendEach', formatMoney)}
+            hint="The Spent column divided by the customers who bought." />
+        </JumpTo>
+        <JumpTo target="members">
+          <KpiCard label="Repeat customer rate" value={formatPercent(repeat)}
+            hint="Buyers with more than one order to date." />
+        </JumpTo>
+        <JumpTo target="new-returning">
+          <KpiCard label="Retention rate" value={formatPercent(retention)}
+            hint={`${back.length} of ${back.length + lost.length} earlier customers ordered again.`} />
+        </JumpTo>
+        <JumpTo target="tier-rewards">
+          <KpiCard label="Reward redemption rate" value={formatPercent(redemption)}
+            hint={rewards.length ? `${used.length} of ${rewards.length} tier rewards used.` : 'No tier rewards issued yet.'} />
+        </JumpTo>
+        <JumpTo target="customers">
+          <KpiCard label="Points earned" value={formatNumber(pointsEarned)}
+            hint={`${formatNumber(pointsBack)} taken back by refunds.`} />
+        </JumpTo>
       </KpiGrid>
       <div style={{ marginTop: 24 }}>
         <InsightsPanel insights={notes} />
       </div>
-      <ReportSection title="New and returning customers" caption="New = first order ever is in this period. Returning = also ordered before it. Did not return = ordered before it but not during it.">
-        <StackedBars data={trend} caption="Customers who bought each month" emptyText="No orders in this period."
-          series={[{ key: 'fresh', label: 'New' }, { key: 'back', label: 'Returning' }]} />
-        <div style={{ height: 16 }} />
-        <SegmentedBar caption="Customers by type" emptyText="No customers match these filters."
-          parts={typeRows.map((r) => ({ label: r.type, value: r.customers, color: r.type === 'No orders yet' ? 'muted' : undefined }))} />
-        <div style={{ height: 16 }} />
-        <Table rowKey="type" rows={typeRows} columns={[
-          { key: 'type', label: 'Customer type' },
-          { key: 'customers', label: 'Customers', numeric: true },
-          { key: 'orders', label: 'Orders', numeric: true },
-          { key: 'revenue', label: 'Revenue', numeric: true, render: (r) => formatMoney(r.revenue) },
-          { key: 'avgOrder', label: 'Avg order', numeric: true, render: (r) => formatMoney(r.avgOrder) },
-          { key: 'share', label: 'Share of revenue', numeric: true, render: (r) => formatPercent(r.share) },
-        ]} />
-        <p className="card-muted" style={{ marginTop: 8 }}>New plus Returning is the Active customers card. Retention rate = Returning / (Returning + Did not return).</p>
-      </ReportSection>
-      <ReportSection title="Members and non-members" caption="A member is a customer who holds a tier today. Tiers are earned by buying, so members are expected to look better; this shows how far apart the two groups are.">
-        <Table rowKey="group" rows={[mem, non]} columns={groupColumns} />
-        <p className="card-muted" style={{ marginTop: 8 }}>Repeat rate = buyers with more than one order to date / buyers. Use the Loyalty tier filter to look at one tier.</p>
-      </ReportSection>
-      <ReportSection title="What customers buy" caption="Revenue by category for the customers shown, and how members and non-members split their spending.">
-        <Table rowKey="category" rows={catRows} empty="No orders in this period." columns={[
-          { key: 'category', label: 'Category' },
-          { key: 'customers', label: 'Customers', numeric: true },
-          { key: 'units', label: 'Units', numeric: true },
-          { key: 'revenue', label: 'Revenue', numeric: true, render: (r) => formatMoney(r.revenue) },
-          { key: 'share', label: 'Share of revenue', numeric: true, render: (r) => formatPercent(r.share) },
-          { key: 'members', label: 'Of member spend', numeric: true, render: (r) => formatPercent(r.members) },
-          { key: 'others', label: 'Of non-member spend', numeric: true, render: (r) => formatPercent(r.others) },
-        ]} />
-        {catRows.length > 0 && <p className="card-muted" style={{ marginTop: 8 }}>These category revenues add up to {formatMoney(now.revenue)}, the revenue of the customers shown.</p>}
-      </ReportSection>
-      <ReportSection title="Tier rewards" caption="Reaching a new tier gives the customer 15% off the next order. Redemption rate = rewards used / rewards issued up to the end date.">
-        <Table rowKey="tier" rows={rewardRows} empty="No tier rewards have been issued to these customers yet." columns={[
-          { key: 'tier', label: 'Tier' },
-          { key: 'issued', label: 'Issued', numeric: true },
-          { key: 'used', label: 'Used', numeric: true },
-          { key: 'available', label: 'Not used yet', numeric: true },
-          { key: 'expired', label: 'Expired', numeric: true },
-          { key: 'rate', label: 'Redemption rate', numeric: true, render: (r) => formatPercent(r.rate) },
-          { key: 'saved', label: 'Saved by customers', numeric: true, render: (r) => formatMoney(r.saved) },
-        ]} />
-        <p className="card-muted" style={{ marginTop: 8 }}>
-          Points: {formatNumber(pointsEarned)} earned and {formatNumber(pointsBack)} taken back in this period, {formatNumber(pointsHeld)} held today by the customers shown.
-        </p>
-      </ReportSection>
+      <Anchor id="new-returning">
+        <ReportSection title="New and returning customers" caption="New = first order ever is in this period. Returning = also ordered before it. Did not return = ordered before it but not during it.">
+          <StackedBars data={trend} caption="Customers who bought each month" emptyText="No orders in this period."
+            series={[{ key: 'fresh', label: 'New' }, { key: 'back', label: 'Returning' }]} />
+          <div style={{ height: 16 }} />
+          <SegmentedBar caption="Customers by type" emptyText="No customers match these filters."
+            parts={typeRows.map((r) => ({ label: r.type, value: r.customers, color: r.type === 'No orders yet' ? 'muted' : undefined }))} />
+          <div style={{ height: 16 }} />
+          <Table rowKey="type" rows={typeRows} columns={[
+            { key: 'type', label: 'Customer type' },
+            { key: 'customers', label: 'Customers', numeric: true },
+            { key: 'orders', label: 'Orders', numeric: true },
+            { key: 'revenue', label: 'Revenue', numeric: true, render: (r) => formatMoney(r.revenue) },
+            { key: 'avgOrder', label: 'Avg order', numeric: true, render: (r) => formatMoney(r.avgOrder) },
+            { key: 'share', label: 'Share of revenue', numeric: true, render: (r) => formatPercent(r.share) },
+          ]} />
+          <p className="card-muted" style={{ marginTop: 8 }}>New plus Returning is the Active customers card. Retention rate = Returning / (Returning + Did not return).</p>
+        </ReportSection>
+      </Anchor>
+      <Anchor id="members">
+        <ReportSection title="Members and non-members" caption="A member is a customer who holds a tier today. Tiers are earned by buying, so members are expected to look better; this shows how far apart the two groups are.">
+          <Table rowKey="group" rows={[mem, non]} columns={groupColumns} />
+          <p className="card-muted" style={{ marginTop: 8 }}>Repeat rate = buyers with more than one order to date / buyers. Use the Loyalty tier filter to look at one tier.</p>
+        </ReportSection>
+      </Anchor>
+      <Anchor id="categories">
+        <ReportSection title="What customers buy" caption="Revenue by category for the customers shown, and how members and non-members split their spending.">
+          <Table rowKey="category" rows={catRows} empty="No orders in this period." columns={[
+            { key: 'category', label: 'Category' },
+            { key: 'customers', label: 'Customers', numeric: true },
+            { key: 'units', label: 'Units', numeric: true },
+            { key: 'revenue', label: 'Revenue', numeric: true, render: (r) => formatMoney(r.revenue) },
+            { key: 'share', label: 'Share of revenue', numeric: true, render: (r) => formatPercent(r.share) },
+            { key: 'members', label: 'Of member spend', numeric: true, render: (r) => formatPercent(r.members) },
+            { key: 'others', label: 'Of non-member spend', numeric: true, render: (r) => formatPercent(r.others) },
+          ]} />
+          {catRows.length > 0 && <p className="card-muted" style={{ marginTop: 8 }}>These category revenues add up to {formatMoney(now.revenue)}, the revenue of the customers shown.</p>}
+        </ReportSection>
+      </Anchor>
+      <Anchor id="tier-rewards">
+        <ReportSection title="Tier rewards" caption="Reaching a new tier gives the customer 15% off the next order. Redemption rate = rewards used / rewards issued up to the end date.">
+          <Table rowKey="tier" rows={rewardRows} empty="No tier rewards have been issued to these customers yet." columns={[
+            { key: 'tier', label: 'Tier' },
+            { key: 'issued', label: 'Issued', numeric: true },
+            { key: 'used', label: 'Used', numeric: true },
+            { key: 'available', label: 'Not used yet', numeric: true },
+            { key: 'expired', label: 'Expired', numeric: true },
+            { key: 'rate', label: 'Redemption rate', numeric: true, render: (r) => formatPercent(r.rate) },
+            { key: 'saved', label: 'Saved by customers', numeric: true, render: (r) => formatMoney(r.saved) },
+          ]} />
+          <p className="card-muted" style={{ marginTop: 8 }}>
+            Points: {formatNumber(pointsEarned)} earned and {formatNumber(pointsBack)} taken back in this period, {formatNumber(pointsHeld)} held today by the customers shown.
+          </p>
+        </ReportSection>
+      </Anchor>
       <div style={{ height: 24 }} />
-      <RecordsTable
-        title="Customers in this report"
-        noun="customers"
-        rows={rows}
-        allCount={data.customers.length}
-        columns={customerColumns}
-        rowKey="customerId"
-        totalLabel={`Total of ${rows.length} ${rows.length === 1 ? 'customer' : 'customers'}`}
-        empty="No customers match these filters."
-        note="These are the customers behind every number above. Orders and Spent cover the chosen dates; Orders to date also counts earlier orders. The total row matches the line under the filters and the Points earned card."
-      />
+      <Anchor id="customers">
+        <RecordsTable
+          title="Customers in this report"
+          noun="customers"
+          rows={rows}
+          allCount={data.customers.length}
+          columns={customerColumns}
+          rowKey="customerId"
+          totalLabel={`Total of ${rows.length} ${rows.length === 1 ? 'customer' : 'customers'}`}
+          empty="No customers match these filters."
+          csvName="customers-records.csv"
+          note="These are the customers behind every number above. Orders and Spent cover the chosen dates; Orders to date also counts earlier orders. The total row matches the line under the filters and the Points earned card."
+        />
+      </Anchor>
       <div style={{ height: 24 }} />
-      <RecordsTable
-        title="Orders in this report"
-        noun="orders"
-        rows={orders}
-        allCount={data.orders.length}
-        columns={orderColumns}
-        rowKey="orderId"
-        totalLabel={`Total of ${orders.length} ${orders.length === 1 ? 'order' : 'orders'}`}
-        empty="No completed orders match these filters."
-        controls={(
-          <Field label="Orders" as="select" value={orderKind} onChange={(e) => setOrderKind(e.target.value)}>
-            <option value="All">All</option>
-            <option value="First">First orders</option>
-            <option value="Repeat">Repeat orders</option>
-          </Field>
-        )}
-        note="Completed orders placed in the chosen dates by the customers shown. With Orders set to All, the total row matches the Orders and Spent totals of the customers table."
-      />
+      <Anchor id="orders">
+        <RecordsTable
+          title="Orders in this report"
+          noun="orders"
+          rows={orders}
+          allCount={data.orders.length}
+          columns={orderColumns}
+          rowKey="orderId"
+          totalLabel={`Total of ${orders.length} ${orders.length === 1 ? 'order' : 'orders'}`}
+          empty="No completed orders match these filters."
+          csvName="customers-orders.csv"
+          controls={(
+            <Field label="Orders" as="select" value={orderKind} onChange={(e) => setOrderKind(e.target.value)}>
+              <option value="All">All</option>
+              <option value="First">First orders</option>
+              <option value="Repeat">Repeat orders</option>
+            </Field>
+          )}
+          note="Completed orders placed in the chosen dates by the customers shown. With Orders set to All, the total row matches the Orders and Spent totals of the customers table."
+        />
+      </Anchor>
     </>
   );
 }

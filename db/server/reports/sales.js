@@ -111,11 +111,11 @@ const METHOD_SQL = `
 
 const ORDERS_SQL = `
   SELECT l.Transaction_id AS orderId, MIN(l.Sale_date) AS saleDate,
-         CONCAT(cu.First_name, N' ', cu.Last_name) AS customer, MAX(l.Method) AS method,
+         l.Customer_id AS customerId, CONCAT(cu.First_name, N' ', cu.Last_name) AS customer, MAX(l.Method) AS method,
          SUM(l.Quantity) AS units, SUM(l.Line_total) AS gross, SUM(l.Refunded) AS refunded, SUM(l.Cost) AS cost
   FROM   lines l
   JOIN   CUSTOMER cu ON cu.Customer_id = l.Customer_id
-  GROUP BY l.Transaction_id, cu.First_name, cu.Last_name
+  GROUP BY l.Transaction_id, l.Customer_id, cu.First_name, cu.Last_name
   ORDER BY saleDate DESC, orderId DESC`;
 
 const CATEGORY_LIST_SQL = `SELECT Category_id AS id, Name AS name FROM CATEGORY WHERE Marked_for_deletion = 0 ORDER BY Name`;

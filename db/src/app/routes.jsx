@@ -46,6 +46,8 @@ import RewardsPage from './pages/returns/RewardsPage.jsx';
 import ReturnsQueuePage from './pages/returns/ReturnsQueuePage.jsx';
 import RewardsReportPage from './pages/reports/RewardsReportPage.jsx';
 import ReturnsReportPage from './pages/reports/ReturnsReportPage.jsx';
+import ReturnDetail from './pages/reports/ReturnDetail.jsx';
+import CustomerDetail from './pages/reports/CustomerDetail.jsx';
 import ReportsHub from './pages/reports/ReportsHub.jsx';
 
 const Soon = ComingSoon;
@@ -83,6 +85,8 @@ export const routes = [
   { path: '/staff/returns', access: STAFF, nav: 'Returns queue', summary: 'Approve, deny and refund customer returns.', element: <ReturnsQueuePage />, owner: 'Part 3' },
   { path: '/staff/reports/rewards', access: MANAGER, element: <RewardsReportPage />, owner: 'Part 3' },
   { path: '/staff/reports/returns', access: MANAGER, element: <ReturnsReportPage />, owner: 'REP-4' },
+  { path: '/staff/reports/returns/:id', access: MANAGER, element: <ReturnDetail />, owner: 'REP-4' },
+  { path: '/staff/reports/customers/:id', access: MANAGER, element: <CustomerDetail />, owner: 'Part 3' },
 
   // ---- Part 4: back office ----
   { path: '/staff/dashboard', access: STAFF, nav: 'Alerts overview', summary: 'Open alerts and returns waiting (managers also see pending supplier orders).', element: <DashboardPage />, owner: 'Part 4' },
